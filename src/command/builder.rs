@@ -4,45 +4,26 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::marker::PhantomData;
-
 use super::{Command, CommandData, Header};
 
-/// Command encoder that can be used on Construct or encoding
-pub trait Encode<C: CommandData> {
-
-    fn encode(method: &str, data: &C) -> Result<Vec<u8>, super::Error>;
-
-}
-
-/// Command decoder that can be used on DeConstruct or decoding
-pub trait Decode<C: CommandData> {
-
-    fn decode(method: &str, data: &Vec<u8>) -> Result<C, super::Error>;
-
-}
-
-/// Construct struct used to create Command struct from CommandData
-pub struct Construct<C: CommandData, E: Encode<C>> {
+/// Builder struct used to create Command struct from CommandData
+pub struct Builder<C: CommandData> {
 
     id: i32,
     status: i16,
     data_type: i8,
     data: C,
 
-    phantom: PhantomData<E>
-
 }
 
-impl<C: CommandData, E: Encode<C>> Construct<C, E> {
+impl<C: CommandData> Builder<C> {
 
     pub fn new(id: i32, data: C) -> Self {
         Self {
             id,
             status: 0,
             data_type: 0,
-            data,
-            phantom: Default::default()
+            data
         }
     }
 
@@ -88,7 +69,7 @@ impl<C: CommandData, E: Encode<C>> Construct<C, E> {
 
     pub fn encode(self) -> Result<Command, super::Error> {
         let data_name = &self.data.method();
-        let data = E::encode(data_name, &self.data)?;
+        let data = C::encode(&self.data)?;
 
         let mut name = [0_u8; 11];
         let bytes = data_name.as_bytes();
@@ -108,16 +89,6 @@ impl<C: CommandData, E: Encode<C>> Construct<C, E> {
             header,
             data
         })
-    }
-
-}
-
-pub struct DeConstruct;
-
-impl DeConstruct {
-
-    pub fn decode<C: CommandData, D: Decode<C>>(command: Command) -> Result<C, super::Error> {
-        D::decode(std::str::from_utf8(&command.header.name)?, &command.data)
     }
 
 }

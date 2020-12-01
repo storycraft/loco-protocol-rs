@@ -4,7 +4,7 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-pub mod construct;
+pub mod builder;
 
 pub mod processor;
 
@@ -36,6 +36,9 @@ pub struct Command {
 pub trait CommandData: Clone + Serialize + DeserializeOwned {
 
     fn method(&self) -> &'static str;
+
+    fn encode(data: &Self) -> Result<Vec<u8>, Error>;
+    fn decode(data: &Vec<u8>) -> Result<Self, Error>;
 
 }
 
