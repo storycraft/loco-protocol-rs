@@ -180,25 +180,15 @@ impl<A: Read + Write> ChannelConnection<A> {
 
 pub type ResponseHandler = fn(Command, Command);
 
-pub trait ChannelHandler {
-
-    fn send_command(&mut self, command: Command, response_handler: ResponseHandler) -> Result<(), SendError<Command>>;
-
-    fn handle(&mut self);
-
-}
-
-trait Handler<'a> {}
-impl<'a, T: ?Sized> Handler<'a> for T {}
-
-pub struct MappedHandler {
+/// Handle command responses from ConnectionChannel
+pub struct ChannelHandler {
 
     pub channel: ConnectionChannel,
     command_map: HashMap<i32, (Command, ResponseHandler)>
 
 }
 
-impl MappedHandler {
+impl ChannelHandler {
 
     pub fn new(channel: ConnectionChannel) -> Self {
         Self {
@@ -207,17 +197,13 @@ impl MappedHandler {
         }
     }
 
-}
-
-impl ChannelHandler for MappedHandler {
-
-    fn send_command(&mut self, command: Command, response_handler: ResponseHandler) -> Result<(), SendError<Command>> {
+    pub fn send_command(&mut self, command: Command, response_handler: ResponseHandler) -> Result<(), SendError<Command>> {
         self.command_map.insert(command.header.id, (command.clone(), response_handler));
 
         self.channel.sender().send(command)
     }
 
-    fn handle(&mut self) {
+    pub fn handle(&mut self) {
         let iter = self.channel.receiver().try_iter();
 
         for response in iter {
