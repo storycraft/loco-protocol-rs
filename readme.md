@@ -1,4 +1,4 @@
-# loco-protocol - Open source Loco protocol compatible implementation
+# loco-protocol - Loco protocol implementation
 
 Open source Loco protocol implemention made with rust
 
