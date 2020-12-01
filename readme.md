@@ -42,7 +42,7 @@ Note: current implemention only supports RSA-AES
 
 
 ## Example
-```rs
+```rust
 use std::{net::{TcpListener, TcpStream}, thread, io};
 use openssl::rsa::Rsa;
 use loco_protocol::{command::{Command, Error, Header, processor::CommandProcessor}, io::SecureClientStream, io::SecureServerStream, secure::CryptoStore};
