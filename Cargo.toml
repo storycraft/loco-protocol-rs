@@ -8,6 +8,7 @@ readme = "readme.md"
 description = "Loco protocol implementation"
 repository = "https://github.com/storycraft/loco-protocol-rs/"
 edition = "2018"
+exclude = ["private.rs"]
 
 [badges]
 maintenance = { status = "experimental" }
