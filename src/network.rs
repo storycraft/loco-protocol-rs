@@ -136,13 +136,16 @@ impl<A: Read + Write> ChannelConnection<A> {
     }
 
     pub fn process(&mut self) -> Result<(), Error> {
+        let mut command_list = Vec::<Command>::new();
         for channel in self.channel_map.values() {
             for command in channel.receiver().try_iter() {
                 self.command_channel.insert(command.header.id, channel.id());
 
-                self.processor.write_commmand(command)?;
+                command_list.push(command);
             }
         }
+        self.processor.write_all_command(command_list)?;
+
 
         let command = self.processor.read_commmand()?;
 
