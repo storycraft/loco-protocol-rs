@@ -81,11 +81,53 @@ impl<S: Read + Write> CommandProcessor<S> {
         }
     }
 
+    /// Read all command
+    pub fn read_all_command(&mut self) -> Result<Vec<Command>, Error> {
+        let mut store = Vec::<Command>::new();
+
+        loop {
+            match self.read_commmand() {
+
+                Ok(readed) => {
+                    match readed {
+                        Some(command) => {
+                            store.push(command);
+                        },
+
+                        None => return Ok(store)
+                    };
+                }
+    
+                Err(err) => return Err(err)
+            }
+        }
+    }
+
     /// Write command to stream.
     pub fn write_commmand(&mut self, command: Command) -> Result<usize, Error> {
         let mut cursor = Cursor::new(vec![0_u8; command.header.data_size as usize + 22]);
                 
         let written = cursor.write_commmand(command)?;
+
+        self.stream.write_all(&cursor.into_inner())?;
+
+        Ok(written)
+    }
+
+    // Write all command to stream
+    pub fn write_all_command(&mut self, list: Vec<Command>) -> Result<usize, Error> {
+        let mut size = 0_usize;
+        let mut written = 0_usize;
+
+        for command in list.iter() {
+            size += command.header.data_size as usize + 22;
+        }
+
+        let mut cursor = Cursor::new(vec![0_u8; size]);
+
+        for command in list.into_iter() {
+            written += cursor.write_commmand(command)?;
+        }
 
         self.stream.write_all(&cursor.into_inner())?;
 
