@@ -2,7 +2,11 @@
 name = "loco-protocol"
 version = "0.0.1"
 authors = ["storycraft <storycraft@pancake.sh>"]
+repository = "https://github.com/storycraft/loco-protocol-rs/"
 edition = "2018"
+
+[badges]
+maintenance = { status = "experimental" }
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

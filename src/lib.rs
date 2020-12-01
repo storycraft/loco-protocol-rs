@@ -9,7 +9,7 @@
 //! An opensource loco protocol implemention written in Rust.
 //! Provides command, secure layer and crypto used in networking.
 //!
-//! ## Structure
+//! ## Specification
 //! ### Command
 //! | name      | size              |
 //! |-----------|-------------------|
@@ -166,7 +166,7 @@
 //!             match err {
 //!                 Error::Io(io_err) if io_err.kind() == io::ErrorKind::WouldBlock => {}
 //!                 
-//!                 _ => panic!(format!("ERR: {:?}", err))
+//!                 _ => panic!(format!("{}", err))
 //!             }
 //!         }
 //!     }
@@ -180,8 +180,3 @@ pub mod io;
 pub mod secure;
 
 pub mod network;
-
-#[cfg(test)]
-pub mod tests {
-
-}

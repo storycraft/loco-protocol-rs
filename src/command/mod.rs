@@ -12,7 +12,7 @@ use crate::secure::CryptoError;
 
 use std::{fmt::Display, io::{self, Read, Write}, str::Utf8Error};
 
-use serde::{Deserialize, de::DeserializeOwned, Serialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Debug)]
 pub struct Header {
@@ -33,7 +33,7 @@ pub struct Command {
 
 }
 
-pub trait CommandData: Clone + Serialize + DeserializeOwned {
+pub trait CommandData: Sized {
 
     fn method(&self) -> &'static str;
 
