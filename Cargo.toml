@@ -1,6 +1,6 @@
 [package]
 name = "loco-protocol"
-version = "0.2.0"
+version = "1.0.0"
 authors = ["storycraft <storycraft@pancake.sh>"]
 license = "MIT"
 keywords = ["loco", "protocol"]
@@ -8,10 +8,9 @@ readme = "readme.md"
 description = "Loco protocol implementation"
 repository = "https://github.com/storycraft/loco-protocol-rs/"
 edition = "2018"
-exclude = ["private.rs"]
 
 [badges]
-maintenance = { status = "experimental" }
+maintenance = { status = "passively-maintained" }
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
