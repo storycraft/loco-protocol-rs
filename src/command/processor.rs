@@ -74,7 +74,10 @@ impl<S: Read + Write> CommandProcessor<S> {
         }
     }
 
-    /// Try to read one command
+    /// Try to read one command.
+    ///
+    /// It will try to read internal buffer first to make sure if there is unread command.
+    /// Stream read will be only tried when there are not enough data in internal buffer.
     pub fn read_commmand(&mut self) -> Result<Option<Command>, Error> {
         match self.try_read_command() {
             Ok(readed) => {

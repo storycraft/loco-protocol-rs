@@ -107,9 +107,7 @@ impl<S: Read + Write> Read for SecureStream<S> {
                 
                 self.read_buffer.extend_from_slice(&mut stream_buf[..readed]);
 
-                self.try_decrypt_encrypted()?;
-
-                self.try_read_decrypted(buf)
+                self.try_decrypt_encrypted().and(self.try_read_decrypted(buf))
             },
 
             Err(err) => Err(err)
