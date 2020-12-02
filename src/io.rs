@@ -51,17 +51,19 @@ impl<S: Read + Write> SecureStream<S> {
         &mut self.crypto
     }
 
-}
+    fn try_read_decrypted(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if self.decrypted_buffer.len() > 0 && buf.len() > 0 {
+            let size = buf.len().min(self.decrypted_buffer.len());
 
-impl<S: Read + Write> Read for SecureStream<S> {
-    
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let mut stream_buf = vec![0_u8; 1024];
+            buf[..size].copy_from_slice(&self.decrypted_buffer.drain(..size).collect::<Vec<u8>>());
 
-        let readed = self.stream.read(&mut stream_buf)?;
-                
-        self.read_buffer.append(&mut stream_buf[..readed].into());
+            Ok(size)
+        } else {
+            Ok(0)
+        }
+    }
 
+    fn try_decrypt_encrypted(&mut self) -> io::Result<()> {
         if self.current.is_none() {
             if self.read_buffer.len() >= 20 {
                 let mut cursor = Cursor::new(self.read_buffer.drain(..20).collect::<Vec<u8>>());
@@ -69,7 +71,7 @@ impl<S: Read + Write> Read for SecureStream<S> {
 
                 self.current = Some(res);
             } else {
-                return Ok(0);
+                return Ok(());
             }
         }
 
@@ -87,14 +89,30 @@ impl<S: Read + Write> Read for SecureStream<S> {
             self.current = None;
         }
 
-        if self.decrypted_buffer.len() > 0 && buf.len() > 0 {
-            let size = buf.len().min(self.decrypted_buffer.len());
+        Ok(())
+    }
 
-            buf[..size].copy_from_slice(&self.decrypted_buffer.drain(..size).collect::<Vec<u8>>());
+}
 
-            Ok(size)
-        } else {
-            Ok(0)
+impl<S: Read + Write> Read for SecureStream<S> {
+    
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        match self.try_decrypt_encrypted().and(self.try_read_decrypted(buf)) {
+            Ok(size) if size > 0 => Ok(size),
+
+            Ok(_) => {
+                let mut stream_buf = [0_u8; 2048];
+
+                let readed = self.stream.read(&mut stream_buf)?;
+                
+                self.read_buffer.extend_from_slice(&mut stream_buf[..readed]);
+
+                self.try_decrypt_encrypted()?;
+
+                self.try_read_decrypted(buf)
+            },
+
+            Err(err) => Err(err)
         }
     }
 

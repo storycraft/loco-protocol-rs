@@ -45,14 +45,7 @@ impl<S: Read + Write> CommandProcessor<S> {
         self.stream
     }
 
-    /// Try to read one command
-    pub fn read_commmand(&mut self) -> Result<Option<Command>, Error> {
-        let mut buf = vec![0_u8; 512];
-
-        let readed = self.stream.read(&mut buf)?;
-
-        self.read_buffer.append(&mut buf[..readed].into());
-        
+    fn try_read_command(&mut self) -> Result<Option<Command>, Error> {
         if self.current.is_none() {
             if self.read_buffer.len() >= 22 {
                 let mut cursor = Cursor::new(self.read_buffer.drain(..22).collect::<Vec<u8>>());
@@ -78,6 +71,27 @@ impl<S: Read + Write> CommandProcessor<S> {
             Ok(Some(command))
         } else {
             Ok(None)
+        }
+    }
+
+    /// Try to read one command
+    pub fn read_commmand(&mut self) -> Result<Option<Command>, Error> {
+        match self.try_read_command() {
+            Ok(readed) => {
+                match readed {
+                    Some(command) => Ok(Some(command)),
+                    None => {
+                        let mut buf = [0_u8; 2048];
+
+                        let readed = self.stream.read(&mut buf)?;
+                
+                        self.read_buffer.extend_from_slice(&mut buf[..readed]);
+
+                        self.try_read_command()
+                    }
+                }
+            },
+            Err(err) => Err(err)
         }
     }
 
