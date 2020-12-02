@@ -10,7 +10,7 @@ pub mod processor;
 
 use crate::secure::CryptoError;
 
-use std::{fmt::Display, io::{self, Read, Write}, str::Utf8Error};
+use std::{fmt::Display, string::FromUtf8Error, io::{self, Read, Write}, str::Utf8Error};
 
 use serde::{Deserialize, Serialize};
 
@@ -22,6 +22,31 @@ pub struct Header {
     pub name: [u8; 11],
     pub data_type: i8,
     pub data_size: i32
+
+}
+
+impl Header {
+
+    /// Extract String from name field
+    pub fn name(&self) -> Result<String, FromUtf8Error> {
+        let size = self.name.iter().position(|&c| c == b'\0').unwrap_or(11);
+
+        String::from_utf8(self.name[..size].into())
+    }
+
+    /// set name field from str. Will be sliced to 11 bytes max.
+    pub fn set_name(&mut self, name: &str) {
+        self.name = Self::to_name(name);
+    }
+
+    pub fn to_name(name: &str) -> [u8; 11] {
+        let bytes = name.as_bytes();
+        let mut name = [0_u8; 11];
+
+        name[..bytes.len().min(11)].copy_from_slice(bytes);
+
+        name
+    }
 
 }
 

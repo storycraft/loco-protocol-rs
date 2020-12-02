@@ -68,19 +68,12 @@ impl<C: CommandData> Builder<C> {
     }
 
     pub fn encode(self) -> Result<Command, super::Error> {
-        let data_name = &self.data.method();
         let data = C::encode(&self.data)?;
-
-        let mut name = [0_u8; 11];
-        let bytes = data_name.as_bytes();
-        let len = bytes.len().min(11);
-
-        name[..len].copy_from_slice(&bytes[..len]);
         
         let header = Header {
             id: self.id,
             status: 0,
-            name,
+            name: Header::to_name(self.data.method()),
             data_type: 0,
             data_size: data.len() as i32
         };
