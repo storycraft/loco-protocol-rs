@@ -200,13 +200,13 @@ impl<T: ReadHeader + Read> ReadCommand for T {
 
 pub trait WriteCommand {
 
-    fn write_commmand(&mut self, command: Command) -> Result<usize, Error>;
+    fn write_command(&mut self, command: Command) -> Result<usize, Error>;
 
 }
 
 impl<T: Write + WriteHeader> WriteCommand for T {
 
-    fn write_commmand(&mut self, command: Command) -> Result<usize, Error> {
+    fn write_command(&mut self, command: Command) -> Result<usize, Error> {
         let header_written = self.write_header(command.header)?;
         
         self.write_all(&command.data)?;

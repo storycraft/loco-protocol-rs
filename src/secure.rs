@@ -323,7 +323,7 @@ impl<T: Write + WriteCommand> SecureCommandWrite for T {
 
         let mut buf_cursor = Cursor::new(Vec::new());
 
-        buf_cursor.write_commmand(command.command)?;
+        buf_cursor.write_command(command.command)?;
 
         self.encrypt_data(crypto, &iv, &buf_cursor.into_inner())?;
 

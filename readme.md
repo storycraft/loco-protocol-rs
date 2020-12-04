@@ -76,7 +76,7 @@ fn main() {
         data: "Hello".as_bytes().into(),
     };
     
-    client.write_commmand(command.clone()).expect("Failed to send command");
+    client.write_command(command.clone()).expect("Failed to send command");
     println!("CLIENT -> {:?}", command.clone());
     
     loop {
@@ -103,7 +103,7 @@ fn main() {
                                     let received = readed.unwrap();
                                     println!("SERVER <- {:?}", received.clone());
     
-                                    server.write_commmand(received.clone()).expect("Command failed to write");
+                                    server.write_command(received.clone()).expect("Command failed to write");
                                     println!("SERVER -> {:?}", received.clone());
                                     break;
                                 }

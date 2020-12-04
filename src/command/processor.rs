@@ -99,10 +99,10 @@ impl<S: Read + Write> CommandProcessor<S> {
     }
 
     /// Write command to stream.
-    pub fn write_commmand(&mut self, command: Command) -> Result<usize, Error> {
+    pub fn write_command(&mut self, command: Command) -> Result<usize, Error> {
         let mut cursor = Cursor::new(vec![0_u8; command.header.data_size as usize + 22]);
                 
-        let written = cursor.write_commmand(command)?;
+        let written = cursor.write_command(command)?;
 
         self.stream.write_all(&cursor.into_inner())?;
 
@@ -121,7 +121,7 @@ impl<S: Read + Write> CommandProcessor<S> {
         let mut cursor = Cursor::new(vec![0_u8; size]);
 
         for command in list.into_iter() {
-            written += cursor.write_commmand(command)?;
+            written += cursor.write_command(command)?;
         }
 
         self.stream.write_all(&cursor.into_inner())?;
