@@ -194,9 +194,9 @@ impl<T: SecureDataRead + SecureHeaderRead> SecureCommandRead for T {
     fn read_secure_command(&mut self, crypto: &impl LocoCrypto) -> Result<SecureCommand, Error> {
         let header = self.read_secure_header()?;
 
-        let readed = self.decrypt_data(crypto, &header)?;
+        let read = self.decrypt_data(crypto, &header)?;
 
-        let mut cursor = Cursor::new(readed);
+        let mut cursor = Cursor::new(read);
 
         let command = cursor.read_command()?;
 

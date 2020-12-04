@@ -98,9 +98,9 @@ fn main() {
                     loop {
                         match server.read_command() {
     
-                            Ok(readed) => {
-                                if readed.is_some() {
-                                    let received = readed.unwrap();
+                            Ok(read) => {
+                                if read.is_some() {
+                                    let received = read.unwrap();
                                     println!("SERVER <- {:?}", received.clone());
     
                                     server.write_command(received.clone()).expect("Command failed to write");
@@ -122,8 +122,8 @@ fn main() {
     
         match client.read_command() {
     
-            Ok(readed) => {
-                match readed {
+            Ok(read) => {
+                match read {
     
                     Some(received) => {
                         println!("CLIENT <- {:?}", received);

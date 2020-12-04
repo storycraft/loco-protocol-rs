@@ -103,9 +103,9 @@ impl<S: Read + Write> Read for SecureStream<S> {
             Ok(_) => {
                 let mut stream_buf = [0_u8; 2048];
 
-                let readed = self.stream.read(&mut stream_buf)?;
+                let read = self.stream.read(&mut stream_buf)?;
                 
-                self.read_buffer.extend_from_slice(&mut stream_buf[..readed]);
+                self.read_buffer.extend_from_slice(&mut stream_buf[..read]);
 
                 self.try_decrypt_encrypted().and(self.try_read_decrypted(buf))
             },
@@ -259,11 +259,11 @@ impl<S: Read + Write, K: HasPrivate> Read for SecureServerStream<S, K> {
     
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         if !self.handshaked {
-            let (mut handshake_readed, mut handshake_buf) = self.handshake.unwrap_or((0, [0_u8; 268]));
+            let (mut handshake_read, mut handshake_buf) = self.handshake.unwrap_or((0, [0_u8; 268]));
 
-            handshake_readed += self.inner.stream.read(&mut handshake_buf[handshake_readed..])?;
+            handshake_read += self.inner.stream.read(&mut handshake_buf[handshake_read..])?;
 
-            if handshake_readed >= handshake_buf.len() {
+            if handshake_read >= handshake_buf.len() {
                 let mut cursor = Cursor::new(handshake_buf.to_vec());
 
                 let header = cursor.read_handshake_header()?;
