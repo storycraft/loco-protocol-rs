@@ -146,7 +146,7 @@ impl<A: Read + Write> ChannelConnection<A> {
         }
         self.processor.write_all_command(command_list)?;
 
-        let command = self.processor.read_commmand()?;
+        let command = self.processor.read_command()?;
 
         match command {
 

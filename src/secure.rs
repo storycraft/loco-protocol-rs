@@ -198,7 +198,7 @@ impl<T: SecureDataRead + SecureHeaderRead> SecureCommandRead for T {
 
         let mut cursor = Cursor::new(readed);
 
-        let command = cursor.read_commmand()?;
+        let command = cursor.read_command()?;
 
         Ok(SecureCommand { header, command })
     }

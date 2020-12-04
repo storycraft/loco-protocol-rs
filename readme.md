@@ -96,7 +96,7 @@ fn main() {
     
                     println!("Connected from {}", connection.1);
                     loop {
-                        match server.read_commmand() {
+                        match server.read_command() {
     
                             Ok(readed) => {
                                 if readed.is_some() {
@@ -120,7 +120,7 @@ fn main() {
             Err(err) => panic!(format!("{}", err))
         }
     
-        match client.read_commmand() {
+        match client.read_command() {
     
             Ok(readed) => {
                 match readed {

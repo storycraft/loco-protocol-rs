@@ -170,13 +170,13 @@ impl<T: Write> WriteHeader for T {
 
 pub trait ReadCommand {
 
-    fn read_commmand(&mut self) -> Result<Command, Error>;
+    fn read_command(&mut self) -> Result<Command, Error>;
 
 }
 
 impl<T: ReadHeader + Read> ReadCommand for T {
 
-    fn read_commmand(&mut self) -> Result<Command, Error> {
+    fn read_command(&mut self) -> Result<Command, Error> {
         let header_read = self.read_header();
         if header_read.is_err() {
             return Err(header_read.err().unwrap());

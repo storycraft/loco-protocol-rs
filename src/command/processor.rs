@@ -78,45 +78,23 @@ impl<S: Read + Write> CommandProcessor<S> {
     ///
     /// It will try to read internal buffer first to make sure if there is unread command.
     /// Stream read will be only tried when there are not enough data in internal buffer.
-    pub fn read_commmand(&mut self) -> Result<Option<Command>, Error> {
+    pub fn read_command(&mut self) -> Result<Option<Command>, Error> {
         match self.try_read_command() {
-            Ok(readed) => {
-                match readed {
+            Ok(read) => {
+                match read {
                     Some(command) => Ok(Some(command)),
                     None => {
                         let mut buf = [0_u8; 2048];
 
-                        let readed = self.stream.read(&mut buf)?;
+                        let read = self.stream.read(&mut buf)?;
                 
-                        self.read_buffer.extend_from_slice(&mut buf[..readed]);
+                        self.read_buffer.extend_from_slice(&mut buf[..read]);
 
                         self.try_read_command()
                     }
                 }
             },
             Err(err) => Err(err)
-        }
-    }
-
-    /// Read all command
-    pub fn read_all_command(&mut self) -> Result<Vec<Command>, Error> {
-        let mut store = Vec::<Command>::new();
-
-        loop {
-            match self.read_commmand() {
-
-                Ok(readed) => {
-                    match readed {
-                        Some(command) => {
-                            store.push(command);
-                        },
-
-                        None => return Ok(store)
-                    };
-                }
-    
-                Err(err) => return Err(err)
-            }
         }
     }
 
