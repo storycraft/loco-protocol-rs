@@ -177,18 +177,11 @@ pub trait ReadCommand {
 impl<T: ReadHeader + Read> ReadCommand for T {
 
     fn read_command(&mut self) -> Result<Command, Error> {
-        let header_read = self.read_header();
-        if header_read.is_err() {
-            return Err(header_read.err().unwrap());
-        }
-        let header = header_read.ok().unwrap();
+        let header = self.read_header()?;
 
         let mut data_buf = Vec::with_capacity(header.data_size as usize);
 
-        let read = self.read_exact(&mut data_buf);
-        if read.is_err() {
-            return Err(read.err().unwrap().into());
-        }
+        self.read_exact(&mut data_buf)?;
 
         Ok(Command {
             header,
