@@ -61,7 +61,7 @@ impl CryptoStore {
 
     /// Encrypt AES key using RSA public key
     pub fn encrypt_key(&self, key: &RSAPublicKey) -> Result<Vec<u8>, CryptoError> {
-        Ok(key.encrypt(&mut rngs::OsRng, PaddingScheme::new_oaep::<sha2::Sha256>(), &self.aes_key).unwrap())
+        Ok(key.encrypt(&mut rngs::OsRng, PaddingScheme::new_oaep::<sha1::Sha1>(), &self.aes_key).unwrap())
     }
 
     fn create_aes_cipher(&self, iv: &[u8; 16]) -> Cfb<Aes128, Pkcs7> {

@@ -20,4 +20,4 @@ rsa = "0.4.0"
 aes = "0.7.4"
 block-modes = { version = "0.8.1", features = ["alloc"] }
 rand = "0.8.4"
-sha2 = "0.9.5"
+sha-1 = "0.9.7"

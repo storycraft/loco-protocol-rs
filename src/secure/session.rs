@@ -113,7 +113,7 @@ impl<S: Read> SecureSession<S> for SecureServerSession<S> {
 
         let key = [0_u8; 16];
         self.key
-            .decrypt(PaddingScheme::new_oaep::<sha2::Sha256>(), &encrypted_key)
+            .decrypt(PaddingScheme::new_oaep::<sha1::Sha1>(), &encrypted_key)
             .map_err(|_| CryptoError::CorruptedData)?;
 
         let crypto = CryptoStore::new_with_key(key);
