@@ -40,7 +40,10 @@ Open source Loco protocol implementation made with rust
 
 Note: current implementation only supports RSA-AES
 
-License
+## WASM support
+To build with WASM target `wasm32-unknown-unknown`, you must enable `wasm` feature.
+
+## License
 -------
 ```
 MIT License
