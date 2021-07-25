@@ -44,7 +44,6 @@ Note: current implementation only supports RSA-AES
 To build with WASM target `wasm32-unknown-unknown`, you must enable `wasm` feature.
 
 ## License
--------
 ```
 MIT License
 
