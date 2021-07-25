@@ -4,26 +4,22 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use super::{Command, CommandData, Header};
+use super::{Command, Header};
 
-/// Builder struct used to create Command struct from CommandData
-pub struct Builder<C: CommandData> {
-
+/// Command build helper
+pub struct CommandBuilder<'a> {
     id: i32,
-    status: i16,
-    data_type: i8,
-    data: C,
+    method: &'a str,
 
+    status: i16,
 }
 
-impl<C: CommandData> Builder<C> {
-
-    pub fn new(id: i32, data: C) -> Self {
+impl<'a> CommandBuilder<'a> {
+    pub fn new(id: i32, method: &'a str) -> Self {
         Self {
             id,
+            method,
             status: 0,
-            data_type: 0,
-            data
         }
     }
 
@@ -35,53 +31,20 @@ impl<C: CommandData> Builder<C> {
         self.status
     }
 
-    pub fn data_type(&self) -> i8 {
-        self.data_type
-    }
- 
-    pub fn data(&self) -> &C {
-        &self.data
-    }
-
-    pub fn set_id(mut self, id: i32) -> Self {
-        self.id = id;
-
-        self
-    }
-
     pub fn set_status(mut self, status: i16) -> Self {
         self.status = status;
 
         self
     }
 
-    pub fn set_data_type(mut self, data_type: i8) -> Self {
-        self.data_type = data_type;
-
-        self
-    }
-
-    pub fn set_data(mut self, data: C) -> Self {
-        self.data = data;
-
-        self
-    }
-
-    pub fn encode(self) -> Result<Command, super::Error> {
-        let data = C::encode(&self.data)?;
-        
+    pub fn build(self, data_type: i8, data: Vec<u8>) -> Command {
         let header = Header {
             id: self.id,
-            status: 0,
-            name: Header::to_name(self.data.method()),
-            data_type: 0,
-            data_size: data.len() as i32
+            status: self.status,
+            method: Header::to_method(self.method),
+            data_type,
         };
 
-        Ok(Command {
-            header,
-            data
-        })
+        Command { header, data }
     }
-
 }
