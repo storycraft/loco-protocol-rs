@@ -60,7 +60,7 @@ impl<S: Read> Read for SecureStream<S> {
             }
         }
 
-        let len = buf.len().min(self.read_buf.len());
+        let len = buf.len();
 
         buf.copy_from_slice(&self.read_buf[..len]);
         self.read_buf.drain(..len);
