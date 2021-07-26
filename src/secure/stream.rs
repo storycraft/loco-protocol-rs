@@ -51,13 +51,15 @@ impl<S: Read> Read for SecureStream<S> {
                 }
 
                 return Ok(len);
-            }
-
-            while self.read_buf.len() < buf.len() {
-                let read = self.layer.read().map_err(io_error_map)?;
-
+            } else {
                 self.read_buf.extend_from_slice(&read);
             }
+        }
+
+        while self.read_buf.len() < buf.len() {
+            let read = self.layer.read().map_err(io_error_map)?;
+
+            self.read_buf.extend_from_slice(&read);
         }
 
         let len = buf.len();
