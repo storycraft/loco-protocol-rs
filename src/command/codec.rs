@@ -54,13 +54,13 @@ impl<S: Write> CommandCodec<S> {
     pub fn write(&mut self, command: &Command) -> Result<usize, StreamError> {
         let header = bincode::serialize(&command.header)?;
 
-        self.stream
-            .write_all(&header)
-            .and(
-                self.stream
-                    .write_u32::<LittleEndian>(command.data.len() as u32),
-            )
-            .and(self.stream.write_all(&command.data))?;
+        let mut buf = Vec::<u8>::with_capacity((HEADER_SIZE + 4) as usize);
+
+        buf.write_all(&header)
+            .and(buf.write_u32::<LittleEndian>(command.data.len() as u32))
+            .and(buf.write_all(&command.data))?;
+
+        self.stream.write_all(&buf)?;
 
         Ok(command.data.len() + 22)
     }
@@ -71,6 +71,7 @@ impl<S: Read> CommandCodec<S> {
     /// Returns tuple with read size and Command.
     pub fn read(&mut self) -> Result<(u32, Command), StreamError> {
         let mut header_buf = [0u8; HEADER_SIZE as usize];
+
         self.stream.read_exact(&mut header_buf)?;
 
         let header = bincode::deserialize(&header_buf)?;

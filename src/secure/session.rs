@@ -70,7 +70,7 @@ impl<S> SecureClientSession<S> {
 
 impl<S: Write> SecureSession<S> for SecureClientSession<S> {
     fn handshake(mut self) -> Result<SecureLayer<S>, SecureHandshakeError> {
-        let mut encrypted_key = self.crypto.encrypt_key(&self.key)?;
+        let encrypted_key = self.crypto.encrypt_key(&self.key)?;
 
         let handshake_header = SecureHandshakeHeader {
             encrypted_key_len: encrypted_key.len() as u32,
@@ -79,9 +79,11 @@ impl<S: Write> SecureSession<S> for SecureClientSession<S> {
         };
         let data = bincode::serialize(&handshake_header)?;
 
-        self.stream
-            .write_all(&data)
-            .and(self.stream.write_all(&mut encrypted_key))?;
+        let mut buf = Vec::<u8>::new();
+
+        buf.write_all(&data).and(buf.write_all(&encrypted_key))?;
+
+        self.stream.write_all(&buf)?;
 
         Ok(SecureLayer::new(self.crypto, self.stream))
     }

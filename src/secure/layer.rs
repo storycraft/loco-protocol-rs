@@ -83,7 +83,7 @@ impl<S: Read> SecureLayer<S> {
 
 impl<S: Write> SecureLayer<S> {
     /// Write one encrypted packet.
-    /// Returns size of buffer written
+    /// Returns size of packet written
     pub fn write(&mut self, buf: &[u8]) -> Result<usize, SecureLayerError> {
         let mut iv = [0_u8; 16];
         CryptoStore::gen_random(&mut iv);
@@ -95,10 +95,13 @@ impl<S: Write> SecureLayer<S> {
             iv,
         };
 
-        self.stream
-            .write_all(&bincode::serialize(&secure_header)?)
-            .and(self.stream.write_all(&data_buf))?;
+        let mut buf = Vec::<u8>::new();
 
-        Ok(data_buf.len())
+        buf.write_all(&bincode::serialize(&secure_header)?)
+            .and(buf.write_all(&data_buf))?;
+
+        self.stream.write_all(&buf)?;
+
+        Ok(buf.len())
     }
 }

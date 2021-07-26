@@ -4,9 +4,7 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use aes::Aes128;
-use block_modes::{BlockMode, Cfb, block_padding::Pkcs7};
-
+use libaes::Cipher;
 use rand::{RngCore, rngs};
 use rsa::{PaddingScheme, PublicKey, RSAPublicKey};
 use serde::{Deserialize, Serialize};
@@ -48,24 +46,20 @@ impl CryptoStore {
     }
 
     pub fn encrypt_aes(&self, data: &[u8], iv: &[u8; 16]) -> Result<Vec<u8>, CryptoError> {
-        let cipher = self.create_aes_cipher(iv);
+        let cipher = Cipher::new_128(&self.aes_key);
 
-        Ok(cipher.encrypt_vec(data))
+        Ok(cipher.cfb128_encrypt(iv, data))
     }
 
     pub fn decrypt_aes(&self, data: &[u8], iv: &[u8; 16]) -> Result<Vec<u8>, CryptoError> {
-        let cipher = self.create_aes_cipher(iv);
+        let cipher = Cipher::new_128(&self.aes_key);
 
-        cipher.decrypt_vec(data).map_err(|_| CryptoError::CorruptedData)
+        Ok(cipher.cfb128_decrypt(iv, data))
     }
 
     /// Encrypt AES key using RSA public key
     pub fn encrypt_key(&self, key: &RSAPublicKey) -> Result<Vec<u8>, CryptoError> {
         Ok(key.encrypt(&mut rngs::OsRng, PaddingScheme::new_oaep::<sha1::Sha1>(), &self.aes_key).unwrap())
-    }
-
-    fn create_aes_cipher(&self, iv: &[u8; 16]) -> Cfb<Aes128, Pkcs7> {
-        Cfb::<Aes128, Pkcs7>::new_from_slices(&self.aes_key, iv).unwrap()
     }
 
     /// Generate cryptographically secure random

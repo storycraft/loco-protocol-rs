@@ -4,16 +4,16 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::{
-    collections::VecDeque,
-    io::{self, Cursor, Read, Write},
-};
+use std::io::{self, Read, Write};
 
-use super::{crypto::CryptoStore, layer::{SecureLayer, SecureLayerError}};
+use super::{
+    crypto::CryptoStore,
+    layer::{SecureLayer, SecureLayerError},
+};
 
 pub struct SecureStream<S> {
     layer: SecureLayer<S>,
-    buf: VecDeque<u8>,
+    read_buf: Vec<u8>,
 }
 
 impl<S> SecureStream<S> {
@@ -40,31 +40,40 @@ impl<S> SecureStream<S> {
 
 impl<S: Read> Read for SecureStream<S> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        if self.buf.len() > 0 {
-            let len = buf.len().min(self.buf.len());
-
-            let mut buf_cursor = Cursor::new(buf);
-            self.buf.drain(..len).for_each(|b| {
-                buf_cursor.write(&[b]).unwrap();
-            });
-
-            Ok(len)
-        } else {
+        if self.read_buf.len() < buf.len() {
             let read = self.layer.read().map_err(io_error_map)?;
 
-            let copied = io::copy(&mut Cursor::new(&read), &mut Cursor::new(buf))?;
+            if read.len() >= buf.len() {
+                let len = buf.len();
+                buf.copy_from_slice(&read[..len]);
+                if read.len() > buf.len() {
+                    self.read_buf.extend_from_slice(&read[len..]);
+                }
 
-            self.buf
-                .extend(read.into_iter().skip(copied as usize));
+                return Ok(len);
+            }
 
-            Ok(copied as usize)
+            while self.read_buf.len() < buf.len() {
+                let read = self.layer.read().map_err(io_error_map)?;
+
+                self.read_buf.extend_from_slice(&read);
+            }
         }
+
+        let len = buf.len().min(self.read_buf.len());
+
+        buf.copy_from_slice(&self.read_buf[..len]);
+        self.read_buf.drain(..len);
+
+        Ok(len)
     }
 }
 
 impl<S: Write> Write for SecureStream<S> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.layer.write(buf).map_err(io_error_map)
+        self.layer.write(buf).map_err(io_error_map)?;
+
+        Ok(buf.len())
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
@@ -76,7 +85,7 @@ impl<S> From<SecureLayer<S>> for SecureStream<S> {
     fn from(layer: SecureLayer<S>) -> Self {
         Self {
             layer,
-            buf: VecDeque::new(),
+            read_buf: Vec::new(),
         }
     }
 }
@@ -85,6 +94,6 @@ fn io_error_map(err: SecureLayerError) -> io::Error {
     match err {
         SecureLayerError::Io(err) => err,
 
-        _ => io::Error::new(io::ErrorKind::InvalidData, "Failed to write encrypted data"),
+        _ => io::Error::new(io::ErrorKind::InvalidData, "Invalid encryption data"),
     }
 }
