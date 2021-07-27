@@ -77,13 +77,11 @@ impl<S: Write> SecureSession<S> for SecureClientSession<S> {
             key_encrypt_type: KeyEncryptType::RsaOaepSha1Mgf1Sha1 as u32,
             encrypt_type: EncryptType::AesCfb128 as u32,
         };
-        let data = bincode::serialize(&handshake_header)?;
+        let header_data = bincode::serialize(&handshake_header)?;
 
-        let mut buf = Vec::<u8>::new();
-
-        buf.write_all(&data).and(buf.write_all(&encrypted_key))?;
-
-        self.stream.write_all(&buf)?;
+        self.stream
+            .write_all(&header_data)
+            .and(self.stream.write_all(&encrypted_key))?;
 
         Ok(SecureLayer::new(self.crypto, self.stream))
     }
@@ -93,25 +91,37 @@ impl<S: Write> SecureSession<S> for SecureClientSession<S> {
 pub struct SecureServerSession<S> {
     stream: S,
     key: RSAPrivateKey,
+    current_header: Option<SecureHandshakeHeader>,
 }
 
 impl<S> SecureServerSession<S> {
     pub fn new(key: RSAPrivateKey, stream: S) -> Self {
-        Self { stream, key }
+        Self {
+            stream,
+            key,
+            current_header: None,
+        }
     }
 }
 
 impl<S: Read> SecureSession<S> for SecureServerSession<S> {
     fn handshake(mut self) -> Result<SecureLayer<S>, SecureHandshakeError> {
-        let mut handshake_header_buf = [0_u8; SECURE_HANDSHAKE_HEADER_SIZE as usize];
-        self.stream.read_exact(&mut handshake_header_buf)?;
+        let handshake_header = match self.current_header.take() {
+            Some(header) => header,
+            None => {
+                let mut handshake_header_buf = [0_u8; SECURE_HANDSHAKE_HEADER_SIZE];
+                self.stream.read_exact(&mut handshake_header_buf)?;
 
-        // TODO::
-        let handshake_header =
-            bincode::deserialize::<SecureHandshakeHeader>(&handshake_header_buf)?;
+                bincode::deserialize::<SecureHandshakeHeader>(&handshake_header_buf)?
+            }
+        };
 
         let mut encrypted_key = vec![0_u8; handshake_header.encrypted_key_len as usize];
-        self.stream.read_exact(&mut encrypted_key)?;
+        if let Err(err) = self.stream.read_exact(&mut encrypted_key) {
+            self.current_header = Some(handshake_header);
+
+            return Err(SecureHandshakeError::from(err));
+        }
 
         let key = [0_u8; 16];
         self.key

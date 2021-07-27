@@ -13,7 +13,7 @@ pub mod layer;
 pub mod session;
 pub mod stream;
 
-pub const SECURE_HEADER_SIZE: u32 = 20;
+pub const SECURE_HEADER_SIZE: usize = 20;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct SecureHeader {
@@ -27,7 +27,7 @@ pub struct SecureCommand {
     pub command: Command,
 }
 
-pub const SECURE_HANDSHAKE_HEADER_SIZE: u32 = 12;
+pub const SECURE_HANDSHAKE_HEADER_SIZE: usize = 12;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SecureHandshakeHeader {

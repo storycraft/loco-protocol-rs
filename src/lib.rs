@@ -73,3 +73,4 @@
 pub mod command;
 
 pub mod secure;
+mod vec_buf;

@@ -40,11 +40,12 @@ impl From<CryptoError> for SecureLayerError {
 pub struct SecureLayer<S> {
     crypto: CryptoStore,
     stream: S,
+    current_header: Option<SecureHeader>,
 }
 
 impl<S> SecureLayer<S> {
     pub fn new(crypto: CryptoStore, stream: S) -> Self {
-        Self { crypto, stream }
+        Self { crypto, stream, current_header: None }
     }
 
     pub fn stream(&self) -> &S {
@@ -67,13 +68,22 @@ impl<S> SecureLayer<S> {
 impl<S: Read> SecureLayer<S> {
     /// Read one encrypted packet
     pub fn read(&mut self) -> Result<Vec<u8>, SecureLayerError> {
-        let mut header_buf = [0_u8; SECURE_HEADER_SIZE as usize];
+        let header = match self.current_header.take() {
+            Some(header) => header,
+            None => {
+                let mut header_buf = [0_u8; SECURE_HEADER_SIZE];
 
-        self.stream.read_exact(&mut header_buf)?;
-        let header = bincode::deserialize::<SecureHeader>(&header_buf)?;
+                self.stream.read_exact(&mut header_buf)?;
+                bincode::deserialize::<SecureHeader>(&header_buf)?
+            },
+        };
 
         let mut encrypted_buf = vec![0_u8; (header.data_size - 16) as usize];
-        self.stream.read_exact(&mut encrypted_buf)?;
+
+        if let Err(err) = self.stream.read_exact(&mut encrypted_buf) {
+            self.current_header = Some(header);
+            return Err(SecureLayerError::from(err));
+        }
 
         let data = self.crypto.decrypt_aes(&encrypted_buf, &header.iv)?;
 
@@ -95,12 +105,9 @@ impl<S: Write> SecureLayer<S> {
             iv,
         };
 
-        let mut buf = Vec::<u8>::new();
-
-        buf.write_all(&bincode::serialize(&secure_header)?)
-            .and(buf.write_all(&data_buf))?;
-
-        self.stream.write_all(&buf)?;
+        self.stream
+            .write_all(&bincode::serialize(&secure_header)?)
+            .and(self.stream.write_all(&data_buf))?;
 
         Ok(buf.len())
     }
