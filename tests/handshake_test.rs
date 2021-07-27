@@ -11,12 +11,12 @@ use loco_protocol::secure::{
     session::{SecureClientSession, SecureServerSession, SecureSession},
 };
 use rand::rngs::OsRng;
-use rsa::{RSAPrivateKey, RSAPublicKey};
+use rsa::{RsaPrivateKey, RsaPublicKey};
 
 #[test]
 pub fn handshake() {
-    let private_key = RSAPrivateKey::new(&mut OsRng, 1024).expect("failed to generate a key");
-    let public_key = RSAPublicKey::from(&private_key);
+    let private_key = RsaPrivateKey::new(&mut OsRng, 1024).expect("failed to generate a key");
+    let public_key = RsaPublicKey::from(&private_key);
 
     let mut local = Vec::<u8>::new();
 

@@ -4,7 +4,7 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use rsa::{PaddingScheme, RSAPrivateKey, RSAPublicKey};
+use rsa::{PaddingScheme, RsaPrivateKey, RsaPublicKey};
 
 use super::{
     crypto::{CryptoError, CryptoStore, EncryptType, KeyEncryptType},
@@ -56,11 +56,11 @@ pub trait SecureSession<S>: Sized {
 pub struct SecureClientSession<S> {
     stream: S,
     crypto: CryptoStore,
-    key: RSAPublicKey,
+    key: RsaPublicKey,
 }
 
 impl<S> SecureClientSession<S> {
-    pub fn new(key: RSAPublicKey, crypto: CryptoStore, stream: S) -> Self {
+    pub fn new(key: RsaPublicKey, crypto: CryptoStore, stream: S) -> Self {
         Self {
             stream,
             crypto,
@@ -92,12 +92,12 @@ impl<S: Write> SecureSession<S> for SecureClientSession<S> {
 #[derive(Debug)]
 pub struct SecureServerSession<S> {
     stream: S,
-    key: RSAPrivateKey,
+    key: RsaPrivateKey,
     current_header: Option<SecureHandshakeHeader>,
 }
 
 impl<S> SecureServerSession<S> {
-    pub fn new(key: RSAPrivateKey, stream: S) -> Self {
+    pub fn new(key: RsaPrivateKey, stream: S) -> Self {
         Self {
             stream,
             key,

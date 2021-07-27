@@ -6,7 +6,7 @@
 
 use libaes::Cipher;
 use rand::{RngCore, rngs};
-use rsa::{PaddingScheme, PublicKey, RSAPublicKey};
+use rsa::{PaddingScheme, PublicKey, RsaPublicKey};
 use serde::{Deserialize, Serialize};
 
 #[repr(u32)]
@@ -59,7 +59,7 @@ impl CryptoStore {
     }
 
     /// Encrypt AES key using RSA public key
-    pub fn encrypt_key(&self, key: &RSAPublicKey) -> Result<Vec<u8>, CryptoError> {
+    pub fn encrypt_key(&self, key: &RsaPublicKey) -> Result<Vec<u8>, CryptoError> {
         Ok(key.encrypt(&mut rngs::OsRng, PaddingScheme::new_oaep::<sha1::Sha1>(), &self.aes_key).unwrap())
     }
 
