@@ -31,6 +31,7 @@ impl From<io::Error> for StreamError {
 }
 
 /// Provide Command read / write operation to stream.
+#[derive(Debug)]
 pub struct CommandCodec<S> {
     stream: S,
     current_header: Option<(Header, u32)>,

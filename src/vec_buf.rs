@@ -7,6 +7,7 @@
 use std::{collections::VecDeque, io::{Cursor, Read, Write}};
 
 /// Store buffers read
+#[derive(Debug)]
 pub struct VecBuf {
     
     deque: VecDeque<Vec<u8>>

@@ -52,6 +52,7 @@ pub trait SecureSession<S>: Sized {
 }
 
 /// Client side connection
+#[derive(Debug)]
 pub struct SecureClientSession<S> {
     stream: S,
     crypto: CryptoStore,
@@ -88,6 +89,7 @@ impl<S: Write> SecureSession<S> for SecureClientSession<S> {
 }
 
 /// Server side connection
+#[derive(Debug)]
 pub struct SecureServerSession<S> {
     stream: S,
     key: RSAPrivateKey,

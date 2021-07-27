@@ -27,6 +27,7 @@ pub enum CryptoError {
 }
 
 /// AES Crypto implementation using aes
+#[derive(Debug)]
 pub struct CryptoStore {
     aes_key: [u8; 16],
 }

@@ -13,6 +13,7 @@ use super::{
     layer::{SecureLayer, SecureLayerError},
 };
 
+#[derive(Debug)]
 pub struct SecureStream<S> {
     layer: SecureLayer<S>,
     read_buf: VecBuf,

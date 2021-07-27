@@ -37,6 +37,7 @@ impl From<CryptoError> for SecureLayerError {
 }
 
 /// Common secure layer used in client and server
+#[derive(Debug)]
 pub struct SecureLayer<S> {
     crypto: CryptoStore,
     stream: S,
