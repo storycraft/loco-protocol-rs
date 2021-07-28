@@ -43,9 +43,11 @@ impl<S> SecureStream<S> {
 
 impl<S: Read> Read for SecureStream<S> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let chunk = self.layer.read().map_err(io_error_map)?;
+        if self.read_buf.is_empty() {
+            let chunk = self.layer.read().map_err(io_error_map)?;
 
-        self.read_buf.push(chunk);
+            self.read_buf.push(chunk);
+        }
 
         self.read_buf.read(buf)
     }

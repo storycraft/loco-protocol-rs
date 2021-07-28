@@ -27,6 +27,10 @@ impl VecBuf {
         self.deque.push_back(chunk)
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.deque.len() <= 0
+    }
+
 }
 
 impl Read for VecBuf {
