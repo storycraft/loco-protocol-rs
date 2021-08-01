@@ -21,13 +21,13 @@ Open source Loco protocol implementation made with rust
 ### Secure data
 | name           | size               |
 |----------------|--------------------|
-| header         | (Header) 20 bytes  |
-| encrypted data | header.size - 16   |
+| size           | 4 bytes            |
+| header         | (Header) 16 bytes  |
+| encrypted data | size - 16          |
 
 #### Header
 | name      | size     |
 |-----------|----------|
-| size      | 4 bytes  |
 | iv        | 16 bytes |
 
 #### Handshake

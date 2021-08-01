@@ -6,10 +6,7 @@
 
 use std::io::Cursor;
 
-use loco_protocol::secure::{
-    crypto::CryptoStore,
-    session::{SecureClientSession, SecureServerSession, SecureSession},
-};
+use loco_protocol::secure::{crypto::CryptoStore, session::{SecureClientSession, SecureServerSession}, stream::SecureStream};
 use rand::rngs::OsRng;
 use rsa::{RsaPrivateKey, RsaPublicKey};
 
@@ -19,12 +16,13 @@ pub fn handshake() {
     let public_key = RsaPublicKey::from(&private_key);
 
     let mut local = Vec::<u8>::new();
+    let mut stream = SecureStream::new(CryptoStore::new(), &mut local);
 
-    let client_session = SecureClientSession::new(public_key, CryptoStore::new(), &mut local);
+    let client_session = SecureClientSession::new(public_key);
 
-    client_session.handshake().expect("Client handshake failed");
+    client_session.handshake(&mut stream).expect("Client handshake failed");
 
-    let server_session = SecureServerSession::new(private_key, Cursor::new(&mut local));
+    let mut server_session = SecureServerSession::new(private_key);
 
-    server_session.handshake().expect("Server handshake failed");
+    server_session.handshake(&mut Cursor::new(&mut local)).expect("Server handshake failed");
 }

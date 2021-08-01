@@ -6,25 +6,21 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::command::Command;
-
 pub mod crypto;
-pub mod layer;
 pub mod session;
 pub mod stream;
 
-pub const SECURE_HEADER_SIZE: usize = 20;
+pub const SECURE_HEADER_SIZE: usize = 16;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct SecureHeader {
-    pub data_size: u32,
     pub iv: [u8; 16],
 }
 
 #[derive(Debug)]
-pub struct SecureCommand {
+pub struct SecurePacket {
     pub header: SecureHeader,
-    pub command: Command,
+    pub data: Vec<u8>,
 }
 
 pub const SECURE_HANDSHAKE_HEADER_SIZE: usize = 12;
