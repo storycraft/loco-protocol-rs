@@ -26,7 +26,7 @@ pub fn to_handshake_packet(
     let header_data = bincode::serialize(&handshake_header)?;
 
     Ok([
-        encrypted_key.len().to_le_bytes().into(),
+        (encrypted_key.len() as u32).to_le_bytes().into(),
         header_data,
         encrypted_key,
     ]

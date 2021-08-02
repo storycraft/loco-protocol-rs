@@ -8,7 +8,6 @@ pub mod decode;
 pub mod encode;
 
 use std::{
-    future::Future,
     io::{self, Read, Write},
     pin::Pin,
     task::{Context, Poll},
@@ -154,23 +153,40 @@ impl<S: Write> Write for SecureStream<S> {
 
 impl<S: AsyncRead + Unpin> SecureStream<S> {
     /// Read one encrypted packet async
-    pub fn read_packet_async(&mut self) -> ReadSecurePacketFuture<S> {
-        ReadSecurePacketFuture {
-            secure_stream: self,
+    pub async fn read_packet_async(&mut self) -> Result<SecurePacket, SecureError> {
+        let mut packet = match self.current_packet.take() {
+            Some(packet) => packet,
+            None => {
+                let mut head_buf = [0_u8; SECURE_HEAD_SIZE];
+                self.stream.read_exact(&mut head_buf).await?;
+
+                decode_secure_head(&head_buf)?
+            }
+        };
+
+        if let Err(err) = self.stream.read_exact(&mut packet.data).await {
+            self.current_packet = Some(packet);
+            return Err(SecureError::from(err));
         }
+
+        let data = self.crypto.decrypt_aes(&packet.data, &packet.header.iv)?;
+
+        Ok(SecurePacket {
+            header: packet.header,
+            data,
+        })
     }
 }
 
 impl<S: AsyncWrite + Unpin> SecureStream<S> {
     /// Write data async.
     /// Returns size of packet written
-    pub fn write_data_async<'a>(&'a mut self, buf: &[u8]) -> WriteSecurePacketFuture<'a, S> {
-        let encrypted_packet = to_encrypted_packet(&self.crypto, buf);
+    pub async fn write_data_async(&mut self, buf: &[u8]) -> Result<usize, SecureError> {
+        let encrypted = to_encrypted_packet(&self.crypto, buf)?;
 
-        WriteSecurePacketFuture {
-            stream: &mut self.stream,
-            encrypted_packet: Some(encrypted_packet),
-        }
+        self.stream.write_all(&encrypted).await?;
+
+        Ok(encrypted.len())
     }
 }
 
@@ -181,8 +197,7 @@ impl<S: AsyncRead + Unpin> AsyncRead for SecureStream<S> {
         buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
         if self.read_buf.is_empty() {
-            let chunk = ready!(self
-                .read_packet_async()
+            let chunk = ready!(Box::pin(self.read_packet_async())
                 .poll_unpin(cx)
                 .map_err(io_error_map)?);
 
@@ -199,9 +214,11 @@ impl<S: AsyncWrite + Unpin> AsyncWrite for SecureStream<S> {
         cx: &mut Context,
         buf: &[u8],
     ) -> Poll<io::Result<usize>> {
-        self.write_data_async(&buf)
+        ready!(Box::pin(self.write_data_async(&buf))
             .poll_unpin(cx)
-            .map_err(io_error_map)
+            .map_err(io_error_map))?;
+
+        Poll::Ready(Ok(buf.len()))
     }
 
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
@@ -210,88 +227,6 @@ impl<S: AsyncWrite + Unpin> AsyncWrite for SecureStream<S> {
 
     fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
         Pin::new(&mut self.stream).poll_close(cx)
-    }
-}
-
-#[derive(Debug)]
-pub struct ReadSecurePacketFuture<'a, S> {
-    secure_stream: &'a mut SecureStream<S>,
-}
-
-impl<S: AsyncRead + Unpin> Future for ReadSecurePacketFuture<'_, S> {
-    type Output = Result<SecurePacket, SecureError>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        if let None = &self.secure_stream.current_packet {
-            self.secure_stream.current_packet = Some({
-                let mut head_buf = [0_u8; SECURE_HEAD_SIZE];
-                ready!(self.secure_stream.read_exact(&mut head_buf).poll_unpin(cx))?;
-
-                decode_secure_head(&head_buf)?
-            });
-        }
-
-        if let Some(mut packet) = self.secure_stream.current_packet.take() {
-            match self
-                .secure_stream
-                .stream_mut()
-                .read_exact(&mut packet.data)
-                .poll_unpin(cx)
-            {
-                Poll::Ready(res) => {
-                    res?;
-
-                    let data = self
-                        .secure_stream
-                        .crypto
-                        .decrypt_aes(&packet.data, &packet.header.iv)?;
-
-                    Poll::Ready(Ok(SecurePacket {
-                        header: packet.header,
-                        data,
-                    }))
-                }
-
-                Poll::Pending => {
-                    self.secure_stream.current_packet = Some(packet);
-                    Poll::Pending
-                }
-            }
-        } else {
-            Poll::Pending
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct WriteSecurePacketFuture<'a, S> {
-    stream: &'a mut S,
-    encrypted_packet: Option<Result<Vec<u8>, SecureError>>,
-}
-
-impl<S: AsyncWrite + Unpin> Future for WriteSecurePacketFuture<'_, S> {
-    type Output = Result<usize, SecureError>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        match self.encrypted_packet.take() {
-            Some(res) => {
-                let encrypted = res?;
-
-                match self.stream.write_all(&encrypted).poll_unpin(cx) {
-                    Poll::Ready(res) => {
-                        res?;
-
-                        Poll::Ready(Ok(encrypted.len()))
-                    }
-                    Poll::Pending => {
-                        self.encrypted_packet = Some(Ok(encrypted));
-
-                        Poll::Pending
-                    }
-                }
-            }
-            None => Poll::Pending,
-        }
     }
 }
 

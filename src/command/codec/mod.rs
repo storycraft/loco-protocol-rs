@@ -7,14 +7,9 @@
 pub mod decode;
 pub mod encode;
 
-use std::{
-    future::Future,
-    io::{self, Read, Write},
-    pin::Pin,
-    task::{Context, Poll},
-};
+use std::io::{self, Read, Write};
 
-use futures::{ready, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, FutureExt};
+use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 use crate::command::codec::decode::decode_head;
 
@@ -109,97 +104,36 @@ impl<S: Read> CommandCodec<S> {
 impl<S: AsyncRead + Unpin> CommandCodec<S> {
     /// Read one command from stream async.
     /// Returns tuple with read size and Command.
-    pub fn read_async(&mut self) -> ReadCommandFuture<S> {
-        ReadCommandFuture { codec: self }
+    pub async fn read_async(&mut self) -> Result<(usize, Command), StreamError> {
+        let mut command = match self.current_command.take() {
+            Some(tup) => tup,
+            None => {
+                let mut buf = [0u8; HEAD_SIZE];
+
+                self.stream.read_exact(&mut buf).await?;
+
+                decode_head(&buf)?
+            }
+        };
+
+        if let Err(err) = self.stream.read_exact(&mut command.data).await {
+            self.current_command = Some(command);
+
+            return Err(StreamError::from(err));
+        }
+
+        Ok((HEAD_SIZE + command.data.len(), command))
     }
 }
 
 impl<S: AsyncWrite + Unpin> CommandCodec<S> {
     /// Write command to stream async
-    pub fn write_async(&mut self, command: &Command) -> WriteCommandFuture<S> {
-        let data = encode_head(&command).map(|mut buf| {
-            buf.append(&mut command.data.clone());
-            buf
-        });
+    pub async fn write_async(&mut self, command: &Command) -> Result<usize, StreamError> {
+        let head = encode_head(&command)?;
 
-        WriteCommandFuture {
-            stream: &mut self.stream,
-            data: Some(data),
-        }
-    }
-}
+        self.stream.write_all(&head).await?;
+        self.stream.write_all(&command.data).await?;
 
-#[derive(Debug)]
-pub struct ReadCommandFuture<'a, S> {
-    codec: &'a mut CommandCodec<S>,
-}
-
-impl<S: AsyncRead + Unpin> Future for ReadCommandFuture<'_, S> {
-    type Output = Result<(usize, Command), StreamError>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        if let None = &self.codec.current_command {
-            self.codec.current_command = Some({
-                let mut buf = [0u8; HEAD_SIZE];
-
-                ready!(self.codec.stream.read_exact(&mut buf).poll_unpin(cx))?;
-
-                decode_head(&buf)?
-            });
-        }
-
-        if let Some(mut command) = self.codec.current_command.take() {
-            match self
-                .codec
-                .stream
-                .read_exact(&mut command.data)
-                .poll_unpin(cx)
-            {
-                Poll::Ready(res) => {
-                    res?;
-
-                    Poll::Ready(Ok((HEAD_SIZE + command.data.len(), command)))
-                }
-                Poll::Pending => {
-                    self.codec.current_command = Some(command);
-
-                    Poll::Pending
-                }
-            }
-        } else {
-            Poll::Pending
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct WriteCommandFuture<'a, S> {
-    stream: &'a mut S,
-    data: Option<Result<Vec<u8>, bincode::Error>>,
-}
-
-impl<S: AsyncWrite + Unpin> Future for WriteCommandFuture<'_, S> {
-    type Output = Result<usize, StreamError>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        match self.data.take() {
-            Some(data) => {
-                let data = data?;
-
-                match self.stream.write_all(&data).poll_unpin(cx) {
-                    Poll::Ready(res) => {
-                        res?;
-                        Poll::Ready(Ok(data.len()))
-                    }
-
-                    Poll::Pending => {
-                        self.data = Some(Ok(data));
-
-                        Poll::Pending
-                    }
-                }
-            }
-            None => Poll::Pending,
-        }
+        Ok(command.data.len() + HEAD_SIZE)
     }
 }

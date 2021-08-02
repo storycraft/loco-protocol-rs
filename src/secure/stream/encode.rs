@@ -15,11 +15,11 @@ pub fn to_encrypted_packet(crypto: &CryptoStore, data: &[u8]) -> Result<Vec<u8>,
 
     let data_buf = crypto.encrypt_aes(&data, &iv)?;
 
-    let data_size = (data_buf.len() + iv.len()) as u32;
+    let data_size = (data_buf.len() + 16) as u32;
 
-    let buf = bincode::serialize(&SecureHeader {
+    let header_buf = bincode::serialize(&SecureHeader {
         iv,
     })?;
 
-    Ok([data_size.to_le_bytes().into(), buf, data_buf].concat())
+    Ok([data_size.to_le_bytes().into(), header_buf, data_buf].concat())
 }
