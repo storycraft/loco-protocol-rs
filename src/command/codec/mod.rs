@@ -14,13 +14,13 @@ use std::{
     task::{Context, Poll},
 };
 
-use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, FutureExt, ready};
+use futures::{ready, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, FutureExt};
 
-use crate::command::{codec::decode::decode_head, HEADER_SIZE};
+use crate::command::codec::decode::decode_head;
 
 use self::encode::encode_head;
 
-use super::{Command, Header};
+use super::{Command, HEAD_SIZE};
 
 #[derive(Debug)]
 pub enum StreamError {
@@ -45,14 +45,14 @@ impl From<io::Error> for StreamError {
 #[derive(Debug)]
 pub struct CommandCodec<S> {
     stream: S,
-    current_header: Option<(Header, u32)>,
+    current_command: Option<Command>,
 }
 
 impl<S> CommandCodec<S> {
     pub fn new(stream: S) -> Self {
         Self {
             stream,
-            current_header: None,
+            current_command: None,
         }
     }
 
@@ -77,18 +77,18 @@ impl<S: Write> CommandCodec<S> {
         self.stream.write_all(&head)?;
         self.stream.write_all(&command.data)?;
 
-        Ok(command.data.len() + HEADER_SIZE + 4)
+        Ok(command.data.len() + HEAD_SIZE)
     }
 }
 
 impl<S: Read> CommandCodec<S> {
     /// Read one command from stream.
     /// Returns tuple with read size and Command.
-    pub fn read(&mut self) -> Result<(u32, Command), StreamError> {
-        let (header, data_size) = match self.current_header.take() {
+    pub fn read(&mut self) -> Result<(usize, Command), StreamError> {
+        let mut command = match self.current_command.take() {
             Some(tup) => tup,
             None => {
-                let mut buf = [0u8; HEADER_SIZE + 4];
+                let mut buf = [0u8; HEAD_SIZE];
 
                 self.stream.read_exact(&mut buf)?;
 
@@ -96,105 +96,110 @@ impl<S: Read> CommandCodec<S> {
             }
         };
 
-        let mut data = vec![0_u8; data_size as usize];
-        if let Err(err) = self.stream.read_exact(&mut data) {
-            self.current_header = Some((header, data_size));
+        if let Err(err) = self.stream.read_exact(&mut command.data) {
+            self.current_command = Some(command);
 
             return Err(StreamError::from(err));
         }
 
-        Ok((HEADER_SIZE as u32 + 4 + data_size, Command { header, data }))
+        Ok((HEAD_SIZE + command.data.len(), command))
     }
 }
 
-/// Async version of [CommandCodec].
-/// Unlike sync version, Async version does not hold state.
-#[derive(Debug)]
-pub struct CommandCodecAsync<S> {
-    stream: S,
-}
-
-impl<S> CommandCodecAsync<S> {
-    pub fn new(stream: S) -> Self {
-        Self { stream }
-    }
-
-    pub fn stream(&self) -> &S {
-        &self.stream
-    }
-
-    pub fn stream_mut(&mut self) -> &mut S {
-        &mut self.stream
-    }
-
-    pub fn unwrap(self) -> S {
-        self.stream
-    }
-}
-
-impl<S: AsyncRead + Unpin> CommandCodecAsync<S> {
-    /// Read one command from stream.
+impl<S: AsyncRead + Unpin> CommandCodec<S> {
+    /// Read one command from stream async.
     /// Returns tuple with read size and Command.
-    pub fn read(&mut self) -> ReadCommandFuture<S> {
-        ReadCommandFuture {
-            stream: &mut self.stream,
-        }
+    pub fn read_async(&mut self) -> ReadCommandFuture<S> {
+        ReadCommandFuture { codec: self }
     }
 }
 
-impl<S: AsyncWrite + Unpin> CommandCodecAsync<S> {
-    /// Write command to stream
-    pub fn write<'a>(&'a mut self, command: &'a Command) -> WriteCommandFuture<'a, S> {
+impl<S: AsyncWrite + Unpin> CommandCodec<S> {
+    /// Write command to stream async
+    pub fn write_async(&mut self, command: &Command) -> WriteCommandFuture<S> {
+        let data = encode_head(&command).map(|mut buf| {
+            buf.append(&mut command.data.clone());
+            buf
+        });
+
         WriteCommandFuture {
             stream: &mut self.stream,
-            command,
+            data: Some(data),
         }
     }
 }
 
 #[derive(Debug)]
 pub struct ReadCommandFuture<'a, S> {
-    stream: &'a mut S,
+    codec: &'a mut CommandCodec<S>,
 }
 
 impl<S: AsyncRead + Unpin> Future for ReadCommandFuture<'_, S> {
-    type Output = Result<(u32, Command), StreamError>;
+    type Output = Result<(usize, Command), StreamError>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let (header, data_size) = {
-            let mut buf = [0u8; HEADER_SIZE + 4];
+        if let None = &self.codec.current_command {
+            self.codec.current_command = Some({
+                let mut buf = [0u8; HEAD_SIZE];
 
-            ready!(self.stream.read_exact(&mut buf).poll_unpin(cx))?;
+                ready!(self.codec.stream.read_exact(&mut buf).poll_unpin(cx))?;
 
-            decode_head(&buf)?
-        };
+                decode_head(&buf)?
+            });
+        }
 
-        let mut data = vec![0_u8; data_size as usize];
-        ready!(self.stream.read_exact(&mut data).poll_unpin(cx))?;
+        if let Some(mut command) = self.codec.current_command.take() {
+            match self
+                .codec
+                .stream
+                .read_exact(&mut command.data)
+                .poll_unpin(cx)
+            {
+                Poll::Ready(res) => {
+                    res?;
 
-        Poll::Ready(Ok((
-            HEADER_SIZE as u32 + 4 + data_size,
-            Command { header, data },
-        )))
+                    Poll::Ready(Ok((HEAD_SIZE + command.data.len(), command)))
+                }
+                Poll::Pending => {
+                    self.codec.current_command = Some(command);
+
+                    Poll::Pending
+                }
+            }
+        } else {
+            Poll::Pending
+        }
     }
 }
 
 #[derive(Debug)]
 pub struct WriteCommandFuture<'a, S> {
     stream: &'a mut S,
-    command: &'a Command,
+    data: Option<Result<Vec<u8>, bincode::Error>>,
 }
 
 impl<S: AsyncWrite + Unpin> Future for WriteCommandFuture<'_, S> {
     type Output = Result<usize, StreamError>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let head = encode_head(self.command)?;
-        let data = &self.command.data;
+        match self.data.take() {
+            Some(data) => {
+                let data = data?;
 
-        ready!(self.stream.write_all(&head).poll_unpin(cx))?;
-        ready!(self.stream.write_all(&data).poll_unpin(cx))?;
+                match self.stream.write_all(&data).poll_unpin(cx) {
+                    Poll::Ready(res) => {
+                        res?;
+                        Poll::Ready(Ok(data.len()))
+                    }
 
-        Poll::Ready(Ok(self.command.data.len() + HEADER_SIZE + 4))
+                    Poll::Pending => {
+                        self.data = Some(Ok(data));
+
+                        Poll::Pending
+                    }
+                }
+            }
+            None => Poll::Pending,
+        }
     }
 }

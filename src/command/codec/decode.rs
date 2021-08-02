@@ -8,14 +8,17 @@ use std::io::Cursor;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
-use crate::command::{HEADER_SIZE, Header};
+use crate::command::{Command, HEADER_SIZE, HEAD_SIZE, Header};
 
 use super::StreamError;
 
-/// Decode [Header] and data_size.
-pub fn decode_head(buf: &[u8]) -> Result<(Header, u32), StreamError> {
+/// Decode [Header] and data_size into empty [Command].
+pub fn decode_head(buf: &[u8]) -> Result<Command, StreamError> {
     let header = bincode::deserialize::<Header>(&buf[..HEADER_SIZE])?;
-    let data_size = Cursor::new(&buf[HEADER_SIZE..]).read_u32::<LittleEndian>()?;
+    let data_size = Cursor::new(&buf[HEADER_SIZE..HEAD_SIZE]).read_u32::<LittleEndian>()?;
 
-    Ok((header, data_size))
+    Ok(Command {
+        header,
+        data: vec![0_u8; data_size as usize]
+    })
 }

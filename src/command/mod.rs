@@ -13,6 +13,7 @@ use std::string::FromUtf8Error;
 use serde::{Deserialize, Serialize};
 
 pub const HEADER_SIZE: usize = 18;
+pub const HEAD_SIZE: usize = HEADER_SIZE + 4;
 
 /// Command packet header
 #[derive(Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Debug)]
