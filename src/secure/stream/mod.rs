@@ -52,12 +52,11 @@ impl From<CryptoError> for SecureError {
     }
 }
 
-/// Common secure layer used in client and server
+/// Secure layer used in client and server
 #[derive(Debug)]
 pub struct SecureStream<S> {
     crypto: CryptoStore,
     stream: S,
-    current_packet: Option<SecurePacket>,
     read_buf: VecBuf,
 }
 
@@ -66,7 +65,6 @@ impl<S> SecureStream<S> {
         Self {
             crypto,
             stream,
-            current_packet: None,
             read_buf: VecBuf::new(),
         }
     }
@@ -91,20 +89,11 @@ impl<S> SecureStream<S> {
 impl<S: Read> SecureStream<S> {
     /// Read one encrypted packet
     pub fn read_packet(&mut self) -> Result<SecurePacket, SecureError> {
-        let mut packet = match self.current_packet.take() {
-            Some(packet) => packet,
-            None => {
-                let mut head_buf = [0_u8; SECURE_HEAD_SIZE];
-                self.stream.read_exact(&mut head_buf)?;
+        let mut head_buf = [0_u8; SECURE_HEAD_SIZE];
+        self.stream.read_exact(&mut head_buf)?;
 
-                decode_secure_head(&head_buf)?
-            }
-        };
-
-        if let Err(err) = self.stream.read_exact(&mut packet.data) {
-            self.current_packet = Some(packet);
-            return Err(SecureError::from(err));
-        }
+        let mut packet = decode_secure_head(&head_buf)?;
+        self.stream.read_exact(&mut packet.data)?;
 
         let data = self.crypto.decrypt_aes(&packet.data, &packet.header.iv)?;
 
@@ -154,20 +143,11 @@ impl<S: Write> Write for SecureStream<S> {
 impl<S: AsyncRead + Unpin> SecureStream<S> {
     /// Read one encrypted packet async
     pub async fn read_packet_async(&mut self) -> Result<SecurePacket, SecureError> {
-        let mut packet = match self.current_packet.take() {
-            Some(packet) => packet,
-            None => {
-                let mut head_buf = [0_u8; SECURE_HEAD_SIZE];
-                self.stream.read_exact(&mut head_buf).await?;
+        let mut head_buf = [0_u8; SECURE_HEAD_SIZE];
+        self.stream.read_exact(&mut head_buf).await?;
 
-                decode_secure_head(&head_buf)?
-            }
-        };
-
-        if let Err(err) = self.stream.read_exact(&mut packet.data).await {
-            self.current_packet = Some(packet);
-            return Err(SecureError::from(err));
-        }
+        let mut packet = decode_secure_head(&head_buf)?;
+        self.stream.read_exact(&mut packet.data).await?;
 
         let data = self.crypto.decrypt_aes(&packet.data, &packet.header.iv)?;
 

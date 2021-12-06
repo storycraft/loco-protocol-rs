@@ -35,20 +35,15 @@ impl From<io::Error> for StreamError {
     }
 }
 
-/// Provide Command read / write operation to stream.
-/// The Stream can be non blocking, therefore the codec holds the state.
+/// Provide Command read / write operation to stream
 #[derive(Debug)]
 pub struct CommandCodec<S> {
     stream: S,
-    current_command: Option<Command>,
 }
 
 impl<S> CommandCodec<S> {
     pub fn new(stream: S) -> Self {
-        Self {
-            stream,
-            current_command: None,
-        }
+        Self { stream }
     }
 
     pub fn stream(&self) -> &S {
@@ -80,22 +75,11 @@ impl<S: Read> CommandCodec<S> {
     /// Read one command from stream.
     /// Returns tuple with read size and Command.
     pub fn read(&mut self) -> Result<(usize, Command), StreamError> {
-        let mut command = match self.current_command.take() {
-            Some(tup) => tup,
-            None => {
-                let mut buf = [0u8; HEAD_SIZE];
+        let mut buf = [0u8; HEAD_SIZE];
+        self.stream.read_exact(&mut buf)?;
 
-                self.stream.read_exact(&mut buf)?;
-
-                decode_head(&buf)?
-            }
-        };
-
-        if let Err(err) = self.stream.read_exact(&mut command.data) {
-            self.current_command = Some(command);
-
-            return Err(StreamError::from(err));
-        }
+        let mut command = decode_head(&buf)?;
+        self.stream.read_exact(&mut command.data)?;
 
         Ok((HEAD_SIZE + command.data.len(), command))
     }
@@ -105,22 +89,12 @@ impl<S: AsyncRead + Unpin> CommandCodec<S> {
     /// Read one command from stream async.
     /// Returns tuple with read size and Command.
     pub async fn read_async(&mut self) -> Result<(usize, Command), StreamError> {
-        let mut command = match self.current_command.take() {
-            Some(tup) => tup,
-            None => {
-                let mut buf = [0u8; HEAD_SIZE];
+        let mut buf = [0u8; HEAD_SIZE];
 
-                self.stream.read_exact(&mut buf).await?;
+        self.stream.read_exact(&mut buf).await?;
 
-                decode_head(&buf)?
-            }
-        };
-
-        if let Err(err) = self.stream.read_exact(&mut command.data).await {
-            self.current_command = Some(command);
-
-            return Err(StreamError::from(err));
-        }
+        let mut command = decode_head(&buf)?;
+        self.stream.read_exact(&mut command.data).await?;
 
         Ok((HEAD_SIZE + command.data.len(), command))
     }

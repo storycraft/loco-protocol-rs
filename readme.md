@@ -3,40 +3,7 @@
 Open source Loco protocol implementation made with rust
 
 ## Specification
-### Command
-| name      | size              |
-|-----------|-------------------|
-| header    | (Header) 18 bytes |
-| data_size | 4 bytes           |
-| data      | header.data_size  |
-
-#### Header
-| name      | size     |
-|-----------|----------|
-| id        | 4 bytes  |
-| status    | 2 bytes  |
-| name      | 11 bytes |
-| data_type | 1 bytes  |
-
-### Secure data
-| name           | size               |
-|----------------|--------------------|
-| size           | 4 bytes            |
-| header         | (Header) 16 bytes  |
-| encrypted data | size - 16          |
-
-#### Header
-| name      | size     |
-|-----------|----------|
-| iv        | 16 bytes |
-
-#### Handshake
-| name             | size       |
-|------------------|------------|
-| key size         | 4 bytes    |
-| key_encrypt_type | 4 bytes    |
-| encrypt_type     | 4 bytes    |
-| key              | 256 bytes  |
+See `specification.md`
 
 Note: current implementation only supports RSA-AES
 

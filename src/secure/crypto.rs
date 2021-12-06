@@ -5,7 +5,7 @@
  */
 
 use libaes::Cipher;
-use rand::{RngCore, rngs};
+use rand::{rngs, RngCore};
 use rsa::{PaddingScheme, PublicKey, RsaPublicKey};
 use serde::{Deserialize, Serialize};
 
@@ -23,7 +23,7 @@ pub enum KeyEncryptType {
 
 #[derive(Debug)]
 pub enum CryptoError {
-    CorruptedData
+    CorruptedData,
 }
 
 /// AES Crypto implementation using aes
@@ -60,7 +60,13 @@ impl CryptoStore {
 
     /// Encrypt AES key using RSA public key
     pub fn encrypt_key(&self, key: &RsaPublicKey) -> Result<Vec<u8>, CryptoError> {
-        Ok(key.encrypt(&mut rngs::OsRng, PaddingScheme::new_oaep::<sha1::Sha1>(), &self.aes_key).unwrap())
+        Ok(key
+            .encrypt(
+                &mut rngs::OsRng,
+                PaddingScheme::new_oaep::<sha1::Sha1>(),
+                &self.aes_key,
+            )
+            .unwrap())
     }
 
     /// Generate cryptographically secure random

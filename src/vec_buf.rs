@@ -4,21 +4,21 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::{collections::VecDeque, io::{Cursor, Read, Write}};
+use std::{
+    collections::VecDeque,
+    io::{Cursor, Read, Write},
+};
 
 /// Store buffers read
 #[derive(Debug)]
 pub struct VecBuf {
-    
-    deque: VecDeque<Vec<u8>>
-
+    deque: VecDeque<Vec<u8>>,
 }
 
 impl VecBuf {
-
     pub fn new() -> Self {
         Self {
-            deque: VecDeque::new()
+            deque: VecDeque::new(),
         }
     }
 
@@ -30,7 +30,6 @@ impl VecBuf {
     pub fn is_empty(&self) -> bool {
         self.deque.len() <= 0
     }
-
 }
 
 impl Read for VecBuf {

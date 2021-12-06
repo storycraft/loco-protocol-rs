@@ -7,6 +7,7 @@
 use super::{Command, Header};
 
 /// Command build helper
+#[derive(Debug)]
 pub struct CommandBuilder<'a> {
     id: i32,
     method: &'a str,
