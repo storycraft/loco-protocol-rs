@@ -15,7 +15,6 @@ use self::{client::to_handshake_packet, server::decode_handshake_head};
 use super::{
     crypto::{CryptoError, CryptoStore},
     stream::SecureStream,
-    SecureHandshake,
 };
 use crate::secure::SECURE_HANDSHAKE_HEAD_SIZE;
 
@@ -50,7 +49,8 @@ impl From<CryptoError> for SecureHandshakeError {
     }
 }
 
-/// Client side connection
+/// Client side credential session
+#[derive(Debug)]
 pub struct SecureClientSession {
     key: RsaPublicKey,
 }
@@ -87,19 +87,15 @@ impl SecureClientSession {
     }
 }
 
-/// Server side connection
+/// Server side credential session
 #[derive(Debug)]
 pub struct SecureServerSession {
     key: RsaPrivateKey,
-    current_handshake: Option<SecureHandshake>,
 }
 
 impl SecureServerSession {
     pub fn new(key: RsaPrivateKey) -> Self {
-        Self {
-            key,
-            current_handshake: None,
-        }
+        Self { key }
     }
 
     /// Do server handshake and returns CryptoStore on success
@@ -107,21 +103,11 @@ impl SecureServerSession {
         &mut self,
         stream: &mut S,
     ) -> Result<CryptoStore, SecureHandshakeError> {
-        let mut handshake = match self.current_handshake.take() {
-            Some(header) => header,
-            None => {
-                let mut handshake_head_buf = [0_u8; SECURE_HANDSHAKE_HEAD_SIZE];
-                stream.read_exact(&mut handshake_head_buf)?;
+        let mut handshake_head_buf = [0_u8; SECURE_HANDSHAKE_HEAD_SIZE];
+        stream.read_exact(&mut handshake_head_buf)?;
 
-                decode_handshake_head(&handshake_head_buf)?
-            }
-        };
-
-        if let Err(err) = stream.read_exact(&mut handshake.encrypted_key) {
-            self.current_handshake = Some(handshake);
-
-            return Err(SecureHandshakeError::from(err));
-        }
+        let mut handshake = decode_handshake_head(&handshake_head_buf)?;
+        stream.read_exact(&mut handshake.encrypted_key)?;
 
         let key = self
             .key
@@ -142,21 +128,11 @@ impl SecureServerSession {
         &'a mut self,
         stream: &'a mut S,
     ) -> Result<CryptoStore, SecureHandshakeError> {
-        let mut handshake = match self.current_handshake.take() {
-            Some(header) => header,
-            None => {
-                let mut handshake_head_buf = [0_u8; SECURE_HANDSHAKE_HEAD_SIZE];
-                stream.read_exact(&mut handshake_head_buf).await?;
+        let mut handshake_head_buf = [0_u8; SECURE_HANDSHAKE_HEAD_SIZE];
+        stream.read_exact(&mut handshake_head_buf).await?;
 
-                decode_handshake_head(&handshake_head_buf)?
-            }
-        };
-
-        if let Err(err) = stream.read_exact(&mut handshake.encrypted_key).await {
-            self.current_handshake = Some(handshake);
-
-            return Err(SecureHandshakeError::from(err));
-        }
+        let mut handshake = decode_handshake_head(&handshake_head_buf)?;
+        stream.read_exact(&mut handshake.encrypted_key).await?;
 
         let key = self
             .key
