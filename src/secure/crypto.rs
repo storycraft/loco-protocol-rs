@@ -4,8 +4,10 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
+use std::cell::RefCell;
+
 use libaes::Cipher;
-use rand::{rngs, RngCore};
+use rand::{rngs, RngCore, prelude::ThreadRng};
 use rsa::{PaddingScheme, PublicKey, RsaPublicKey};
 use serde::{Deserialize, Serialize};
 
@@ -30,20 +32,23 @@ pub enum CryptoError {
 #[derive(Debug)]
 pub struct CryptoStore {
     aes_key: [u8; 16],
+    rng: RefCell<ThreadRng>
 }
 
 impl CryptoStore {
     /// Create new crypto using cryptographically secure random key
     pub fn new() -> Self {
         let mut aes_key = [0_u8; 16];
-        Self::gen_random(&mut aes_key);
+        let mut rng = rngs::ThreadRng::default();
 
-        Self::new_with_key(aes_key)
+        rng.fill_bytes(&mut aes_key);
+
+        Self { aes_key, rng: RefCell::new(rng) }
     }
 
     /// Create new crypto store using given AES key
     pub fn new_with_key(aes_key: [u8; 16]) -> Self {
-        Self { aes_key }
+        Self { aes_key, rng: RefCell::new(rngs::ThreadRng::default()) }
     }
 
     pub fn encrypt_aes(&self, data: &[u8], iv: &[u8; 16]) -> Result<Vec<u8>, CryptoError> {
@@ -62,15 +67,14 @@ impl CryptoStore {
     pub fn encrypt_key(&self, key: &RsaPublicKey) -> Result<Vec<u8>, CryptoError> {
         Ok(key
             .encrypt(
-                &mut rngs::OsRng,
+                (&mut self.rng.borrow_mut()) as &mut ThreadRng,
                 PaddingScheme::new_oaep::<sha1::Sha1>(),
                 &self.aes_key,
             )
             .unwrap())
     }
 
-    /// Generate cryptographically secure random
-    pub fn gen_random(data: &mut [u8]) {
-        rngs::OsRng.fill_bytes(data)
+    pub fn gen_random(&self, data: &mut [u8]) {
+        self.rng.borrow_mut().fill_bytes(data);
     }
 }

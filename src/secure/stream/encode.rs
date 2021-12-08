@@ -11,7 +11,7 @@ use super::SecureError;
 /// Encrypt data using provided [CryptoStore] and make it packet 
 pub fn to_encrypted_packet(crypto: &CryptoStore, data: &[u8]) -> Result<Vec<u8>, SecureError> {
     let mut iv = [0_u8; 16];
-    CryptoStore::gen_random(&mut iv);
+    crypto.gen_random(&mut iv);
 
     let data_buf = crypto.encrypt_aes(&data, &iv)?;
 
