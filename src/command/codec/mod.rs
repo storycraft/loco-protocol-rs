@@ -7,7 +7,11 @@
 pub mod decode;
 pub mod encode;
 
-use std::io::{self, Read, Write};
+use std::{
+    error::Error,
+    fmt::Display,
+    io::{self, Read, Write},
+};
 
 use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
@@ -35,6 +39,17 @@ impl From<io::Error> for StreamError {
     }
 }
 
+impl Display for StreamError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StreamError::Bincode(err) => err.fmt(f),
+            StreamError::Io(err) => err.fmt(f),
+        }
+    }
+}
+
+impl Error for StreamError {}
+
 /// Provide Command read / write operation to stream
 #[derive(Debug)]
 pub struct CommandCodec<S> {
@@ -42,11 +57,11 @@ pub struct CommandCodec<S> {
 }
 
 impl<S> CommandCodec<S> {
-    pub fn new(stream: S) -> Self {
+    pub const fn new(stream: S) -> Self {
         Self { stream }
     }
 
-    pub fn stream(&self) -> &S {
+    pub const fn stream(&self) -> &S {
         &self.stream
     }
 
@@ -54,7 +69,7 @@ impl<S> CommandCodec<S> {
         &mut self.stream
     }
 
-    pub fn unwrap(self) -> S {
+    pub fn into_inner(self) -> S {
         self.stream
     }
 }

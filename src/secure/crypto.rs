@@ -4,10 +4,10 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::cell::RefCell;
+use std::{cell::RefCell, error::Error, fmt::Display};
 
 use libaes::Cipher;
-use rand::{rngs, RngCore, prelude::ThreadRng};
+use rand::{prelude::ThreadRng, rngs, RngCore};
 use rsa::{PaddingScheme, PublicKey, RsaPublicKey};
 use serde::{Deserialize, Serialize};
 
@@ -28,11 +28,19 @@ pub enum CryptoError {
     CorruptedData,
 }
 
+impl Display for CryptoError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Corrupted data")
+    }
+}
+
+impl Error for CryptoError {}
+
 /// AES Crypto implementation using aes
 #[derive(Debug)]
 pub struct CryptoStore {
     aes_key: [u8; 16],
-    rng: RefCell<ThreadRng>
+    rng: RefCell<ThreadRng>,
 }
 
 impl CryptoStore {
@@ -43,12 +51,18 @@ impl CryptoStore {
 
         rng.fill_bytes(&mut aes_key);
 
-        Self { aes_key, rng: RefCell::new(rng) }
+        Self {
+            aes_key,
+            rng: RefCell::new(rng),
+        }
     }
 
     /// Create new crypto store using given AES key
     pub fn new_with_key(aes_key: [u8; 16]) -> Self {
-        Self { aes_key, rng: RefCell::new(rngs::ThreadRng::default()) }
+        Self {
+            aes_key,
+            rng: RefCell::new(rngs::ThreadRng::default()),
+        }
     }
 
     pub fn encrypt_aes(&self, data: &[u8], iv: &[u8; 16]) -> Result<Vec<u8>, CryptoError> {

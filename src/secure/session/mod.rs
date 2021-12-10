@@ -20,6 +20,8 @@ use crate::secure::SECURE_HANDSHAKE_HEAD_SIZE;
 
 use std::{
     convert::TryInto,
+    error::Error,
+    fmt::Display,
     io::{self, Read, Write},
 };
 
@@ -49,6 +51,19 @@ impl From<CryptoError> for SecureHandshakeError {
     }
 }
 
+impl Display for SecureHandshakeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SecureHandshakeError::Bincode(err) => err.fmt(f),
+            SecureHandshakeError::Io(err) => err.fmt(f),
+            SecureHandshakeError::Crypto(err) => err.fmt(f),
+            SecureHandshakeError::InvalidKey => write!(f, "Invalid key"),
+        }
+    }
+}
+
+impl Error for SecureHandshakeError {}
+
 /// Client side credential session
 #[derive(Debug)]
 pub struct SecureClientSession {
@@ -56,7 +71,7 @@ pub struct SecureClientSession {
 }
 
 impl SecureClientSession {
-    pub fn new(key: RsaPublicKey) -> Self {
+    pub const fn new(key: RsaPublicKey) -> Self {
         Self { key }
     }
 }
@@ -94,7 +109,7 @@ pub struct SecureServerSession {
 }
 
 impl SecureServerSession {
-    pub fn new(key: RsaPrivateKey) -> Self {
+    pub const fn new(key: RsaPrivateKey) -> Self {
         Self { key }
     }
 
