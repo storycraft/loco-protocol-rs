@@ -1,6 +1,6 @@
 [package]
 name = "loco-protocol"
-version = "4.0.0"
+version = "4.1.0"
 authors = ["storycraft <storycraft@pancake.sh>"]
 license = "MIT"
 keywords = ["loco", "protocol"]
