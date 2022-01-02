@@ -4,7 +4,7 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::{cell::RefCell, error::Error, fmt::Display};
+use std::{error::Error, fmt::Display, sync::Mutex};
 
 use libaes::Cipher;
 use rand::{prelude::ThreadRng, rngs, RngCore};
@@ -40,7 +40,7 @@ impl Error for CryptoError {}
 #[derive(Debug)]
 pub struct CryptoStore {
     aes_key: [u8; 16],
-    rng: RefCell<ThreadRng>,
+    rng: Mutex<ThreadRng>,
 }
 
 impl CryptoStore {
@@ -53,7 +53,7 @@ impl CryptoStore {
 
         Self {
             aes_key,
-            rng: RefCell::new(rng),
+            rng: Mutex::new(rng),
         }
     }
 
@@ -61,7 +61,7 @@ impl CryptoStore {
     pub fn new_with_key(aes_key: [u8; 16]) -> Self {
         Self {
             aes_key,
-            rng: RefCell::new(rngs::ThreadRng::default()),
+            rng: Mutex::new(rngs::ThreadRng::default()),
         }
     }
 
@@ -81,7 +81,7 @@ impl CryptoStore {
     pub fn encrypt_key(&self, key: &RsaPublicKey) -> Result<Vec<u8>, CryptoError> {
         Ok(key
             .encrypt(
-                (&mut self.rng.borrow_mut()) as &mut ThreadRng,
+                (&mut self.rng.lock().unwrap()) as &mut ThreadRng,
                 PaddingScheme::new_oaep::<sha1::Sha1>(),
                 &self.aes_key,
             )
@@ -89,6 +89,15 @@ impl CryptoStore {
     }
 
     pub fn gen_random(&self, data: &mut [u8]) {
-        self.rng.borrow_mut().fill_bytes(data);
+        self.rng.lock().unwrap().fill_bytes(data);
+    }
+}
+
+impl Clone for CryptoStore {
+    fn clone(&self) -> Self {
+        Self {
+            aes_key: self.aes_key.clone(),
+            rng: Mutex::new(rngs::ThreadRng::default()),
+        }
     }
 }

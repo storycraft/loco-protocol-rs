@@ -1,6 +1,6 @@
 # loco-protocol - Loco protocol implementation
 
-Open source Loco protocol implementation made with rust
+Open source Loco protocol and secure layer implementation in Rust
 
 ## Specification
 See `specification.md`
@@ -14,7 +14,7 @@ To build with WASM target `wasm32-unknown-unknown`, you must enable `wasm` featu
 ```
 MIT License
 
-Copyright (c) 2021 storycraft
+Copyright (c) 2022 storycraft
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
