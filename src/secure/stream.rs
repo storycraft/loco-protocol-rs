@@ -10,7 +10,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use futures::{ready, AsyncRead, AsyncWrite, FutureExt};
+use futures::{pin_mut, ready, AsyncRead, AsyncWrite, FutureExt};
 
 use crate::vec_buf::VecBuf;
 
@@ -82,9 +82,11 @@ impl<S: AsyncRead + Unpin> AsyncRead for SecureStream<S> {
         buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
         if self.read_buf.is_empty() {
-            let chunk = ready!(Box::pin(self.codec.read_packet_async())
-                .poll_unpin(cx)
-                .map_err(io_error_map)?);
+            let chunk = {
+                let fut = self.codec.read_packet_async();
+                pin_mut!(fut);
+                ready!(fut.poll_unpin(cx).map_err(io_error_map)?)
+            };
 
             self.read_buf.push(chunk.data);
         }
@@ -99,11 +101,13 @@ impl<S: AsyncWrite + Unpin> AsyncWrite for SecureStream<S> {
         cx: &mut Context,
         buf: &[u8],
     ) -> Poll<io::Result<usize>> {
-        ready!(Box::pin(self.codec.write_data_async(&buf))
-            .poll_unpin(cx)
-            .map_err(io_error_map))?;
+        let written = {
+            let fut = self.codec.write_data_async(&buf);
+            pin_mut!(fut);
+            ready!(fut.poll_unpin(cx).map_err(io_error_map)?)
+        };
 
-        Poll::Ready(Ok(buf.len()))
+        Poll::Ready(Ok(written))
     }
 
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
