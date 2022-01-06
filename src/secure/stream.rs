@@ -65,9 +65,7 @@ impl<S: Read> Read for SecureStream<S> {
 
 impl<S: Write> Write for SecureStream<S> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.codec.write_data(buf).map_err(io_error_map)?;
-
-        Ok(buf.len())
+        self.codec.write_data(buf).map_err(io_error_map)
     }
 
     fn flush(&mut self) -> io::Result<()> {
