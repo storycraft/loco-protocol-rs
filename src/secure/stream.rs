@@ -65,7 +65,9 @@ impl<S: Read> Read for SecureStream<S> {
 
 impl<S: Write> Write for SecureStream<S> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.codec.write_data(buf).map_err(io_error_map)
+        self.codec.write_data(buf).map_err(io_error_map)?;
+
+        Ok(buf.len())
     }
 
     fn flush(&mut self) -> io::Result<()> {
@@ -99,13 +101,13 @@ impl<S: AsyncWrite + Unpin> AsyncWrite for SecureStream<S> {
         cx: &mut Context,
         buf: &[u8],
     ) -> Poll<io::Result<usize>> {
-        let written = {
+        {
             let fut = self.codec.write_data_async(&buf);
             pin_mut!(fut);
-            ready!(fut.poll_unpin(cx).map_err(io_error_map)?)
+            ready!(fut.poll_unpin(cx).map_err(io_error_map))?;
         };
 
-        Poll::Ready(Ok(written))
+        Poll::Ready(Ok(buf.len()))
     }
 
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
