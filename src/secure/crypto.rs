@@ -4,10 +4,10 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::{error::Error, fmt::Display, sync::Mutex};
+use std::{error::Error, fmt::Display};
 
 use libaes::Cipher;
-use rand::{prelude::ThreadRng, rngs, RngCore};
+use rand::{thread_rng, RngCore};
 use rsa::{PaddingScheme, PublicKey, RsaPublicKey};
 use serde::{Deserialize, Serialize};
 
@@ -37,32 +37,25 @@ impl Display for CryptoError {
 impl Error for CryptoError {}
 
 /// AES Crypto implementation using aes
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CryptoStore {
     aes_key: [u8; 16],
-    rng: Mutex<ThreadRng>,
 }
 
 impl CryptoStore {
     /// Create new crypto using cryptographically secure random key
     pub fn new() -> Self {
         let mut aes_key = [0_u8; 16];
-        let mut rng = rngs::ThreadRng::default();
+        let mut rng = thread_rng();
 
         rng.fill_bytes(&mut aes_key);
 
-        Self {
-            aes_key,
-            rng: Mutex::new(rng),
-        }
+        Self { aes_key }
     }
 
     /// Create new crypto store using given AES key
     pub fn new_with_key(aes_key: [u8; 16]) -> Self {
-        Self {
-            aes_key,
-            rng: Mutex::new(rngs::ThreadRng::default()),
-        }
+        Self { aes_key }
     }
 
     pub fn encrypt_aes(&self, data: &[u8], iv: &[u8; 16]) -> Result<Vec<u8>, CryptoError> {
@@ -81,7 +74,7 @@ impl CryptoStore {
     pub fn encrypt_key(&self, key: &RsaPublicKey) -> Result<Vec<u8>, CryptoError> {
         Ok(key
             .encrypt(
-                (&mut self.rng.lock().unwrap()) as &mut ThreadRng,
+                &mut thread_rng(),
                 PaddingScheme::new_oaep::<sha1::Sha1>(),
                 &self.aes_key,
             )
@@ -89,15 +82,6 @@ impl CryptoStore {
     }
 
     pub fn gen_random(&self, data: &mut [u8]) {
-        self.rng.lock().unwrap().fill_bytes(data);
-    }
-}
-
-impl Clone for CryptoStore {
-    fn clone(&self) -> Self {
-        Self {
-            aes_key: self.aes_key.clone(),
-            rng: Mutex::new(rngs::ThreadRng::default()),
-        }
+        thread_rng().fill_bytes(data);
     }
 }
