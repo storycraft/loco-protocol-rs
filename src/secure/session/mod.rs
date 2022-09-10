@@ -85,6 +85,7 @@ impl SecureClientSession {
         let handshake = to_handshake_packet(secure_stream.crypto(), &self.key)?;
 
         secure_stream.stream_mut().write_all(&handshake)?;
+        secure_stream.stream_mut().flush()?;
 
         Ok(())
     }
@@ -97,6 +98,7 @@ impl SecureClientSession {
         let handshake = to_handshake_packet(secure_stream.crypto(), &self.key)?;
 
         secure_stream.stream_mut().write_all(&handshake).await?;
+        secure_stream.stream_mut().flush().await?;
 
         Ok(())
     }
@@ -115,7 +117,7 @@ impl SecureServerSession {
 
     /// Do server handshake and returns CryptoStore on success
     pub fn handshake<S: Read>(
-        &mut self,
+        &self,
         stream: &mut S,
     ) -> Result<CryptoStore, SecureHandshakeError> {
         let mut handshake_head_buf = [0_u8; SECURE_HANDSHAKE_HEAD_SIZE];
@@ -140,7 +142,7 @@ impl SecureServerSession {
 
     /// Do server handshake async and returns CryptoStore on success
     pub async fn handshake_async<'a, S: AsyncRead + Unpin>(
-        &'a mut self,
+        &'a self,
         stream: &'a mut S,
     ) -> Result<CryptoStore, SecureHandshakeError> {
         let mut handshake_head_buf = [0_u8; SECURE_HANDSHAKE_HEAD_SIZE];
