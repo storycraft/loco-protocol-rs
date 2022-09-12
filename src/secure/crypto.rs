@@ -20,7 +20,8 @@ pub enum EncryptType {
 #[repr(u32)]
 #[derive(Debug, Serialize, Deserialize, Copy, Clone)]
 pub enum KeyEncryptType {
-    RsaOaepSha1Mgf1Sha1 = 12,
+    RsaOaepSha1Mgf1Sha1Old = 12,
+    RsaOaepSha1Mgf1Sha1 = 15,
 }
 
 #[derive(Debug)]
