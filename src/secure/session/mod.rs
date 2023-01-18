@@ -8,7 +8,8 @@ pub mod client;
 pub mod server;
 
 use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
-use rsa::{PaddingScheme, RsaPrivateKey, RsaPublicKey};
+use rsa::{Oaep, RsaPrivateKey, RsaPublicKey};
+use sha1::Sha1;
 
 use self::{client::to_handshake_packet, server::decode_handshake_head};
 
@@ -116,10 +117,7 @@ impl SecureServerSession {
     }
 
     /// Do server handshake and returns CryptoStore on success
-    pub fn handshake<S: Read>(
-        &self,
-        stream: &mut S,
-    ) -> Result<CryptoStore, SecureHandshakeError> {
+    pub fn handshake<S: Read>(&self, stream: &mut S) -> Result<CryptoStore, SecureHandshakeError> {
         let mut handshake_head_buf = [0_u8; SECURE_HANDSHAKE_HEAD_SIZE];
         stream.read_exact(&mut handshake_head_buf)?;
 
@@ -128,10 +126,7 @@ impl SecureServerSession {
 
         let key = self
             .key
-            .decrypt(
-                PaddingScheme::new_oaep::<sha1::Sha1>(),
-                &handshake.encrypted_key,
-            )
+            .decrypt(Oaep::new_with_mgf_hash::<Sha1, Sha1>(), &handshake.encrypted_key)
             .map_err(|_| CryptoError::CorruptedData)?;
 
         Ok(CryptoStore::new_with_key(
@@ -153,10 +148,7 @@ impl SecureServerSession {
 
         let key = self
             .key
-            .decrypt(
-                PaddingScheme::new_oaep::<sha1::Sha1>(),
-                &handshake.encrypted_key,
-            )
+            .decrypt(Oaep::new::<Sha1>(), &handshake.encrypted_key)
             .map_err(|_| CryptoError::CorruptedData)?;
 
         Ok(CryptoStore::new_with_key(

@@ -7,13 +7,11 @@
 use std::{
     io::{self, Cursor, Read, Write},
     pin::Pin,
-    task::{Context, Poll},
+    task::{Context, Poll}, collections::VecDeque,
 };
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use futures::{ready, AsyncRead, AsyncWrite};
-
-use crate::vec_buf::VecBuf;
 
 use super::{
     crypto::{CryptoError, CryptoStore},
@@ -29,7 +27,7 @@ pub struct SecureStream<S> {
     current_read: Option<ReadStreamState>,
     current_write: Option<WriteStreamState>,
 
-    read_buf: VecBuf,
+    read_buf: VecDeque<u8>,
 }
 
 impl<S> SecureStream<S> {
@@ -39,7 +37,7 @@ impl<S> SecureStream<S> {
             stream,
             current_read: None,
             current_write: None,
-            read_buf: VecBuf::new(),
+            read_buf: VecDeque::new(),
         }
     }
 
@@ -65,7 +63,7 @@ impl<S: Read> Read for SecureStream<S> {
         if self.read_buf.is_empty() {
             let chunk = self.read_packet().map_err(io_error_map)?;
 
-            self.read_buf.push(chunk);
+            self.read_buf.extend(chunk);
         }
 
         self.read_buf.read(buf)
@@ -167,7 +165,7 @@ impl<S: AsyncRead + Unpin> AsyncRead for SecureStream<S> {
         if self.read_buf.is_empty() {
             let chunk = ready!(self.as_mut().poll_read_packet(cx)).map_err(io_error_map)?;
 
-            self.read_buf.push(chunk);
+            self.read_buf.extend(chunk);
         }
 
         Poll::Ready(self.read_buf.read(buf))

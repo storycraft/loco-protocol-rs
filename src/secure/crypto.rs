@@ -8,8 +8,9 @@ use std::{error::Error, fmt::Display};
 
 use libaes::Cipher;
 use rand::{thread_rng, RngCore};
-use rsa::{PaddingScheme, PublicKey, RsaPublicKey};
+use rsa::{Oaep, PublicKey, RsaPublicKey};
 use serde::{Deserialize, Serialize};
+use sha1::Sha1;
 
 #[repr(u32)]
 #[derive(Debug, Serialize, Deserialize, Copy, Clone)]
@@ -74,11 +75,7 @@ impl CryptoStore {
     /// Encrypt AES key using RSA public key
     pub fn encrypt_key(&self, key: &RsaPublicKey) -> Result<Vec<u8>, CryptoError> {
         Ok(key
-            .encrypt(
-                &mut thread_rng(),
-                PaddingScheme::new_oaep::<sha1::Sha1>(),
-                &self.aes_key,
-            )
+            .encrypt(&mut thread_rng(), Oaep::new_with_mgf_hash::<Sha1, Sha1>(), &self.aes_key)
             .unwrap())
     }
 
