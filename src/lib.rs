@@ -9,3 +9,5 @@
 pub mod command;
 
 pub mod secure;
+
+pub use rsa;
