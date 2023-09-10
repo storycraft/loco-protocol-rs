@@ -1,5 +1,5 @@
-![Crates.io](https://img.shields.io/crates/v/loco-protocol)
-![docs.rs](https://img.shields.io/docsrs/loco-protocol)
+[![Crates.io](https://img.shields.io/crates/v/loco-protocol)](https://crates.io/crates/loco-protocol/)
+[![docs.rs](https://img.shields.io/docsrs/loco-protocol)](https://docs.rs/loco-protocol/latest/)
 
 # `loco-protocol`: Rust Loco protocol implementation
 Open source loco protocol and secure layer implementation
