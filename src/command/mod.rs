@@ -1,55 +1,49 @@
 /*
- * Created on Sat Nov 28 2020
+ * Created on Sat Sep 09 2023
  *
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-pub mod builder;
+use std::ops::Deref;
 
-pub mod codec;
+use serde::{Serialize, Deserialize};
 
-use std::string::FromUtf8Error;
+pub mod client;
 
-use serde::{Deserialize, Serialize};
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Method([u8; 11]);
 
-pub const HEADER_SIZE: usize = 18;
-pub const HEAD_SIZE: usize = HEADER_SIZE + 4;
+impl Method {
+    pub fn new(string: &str) -> Option<Self> {
+        if string.len() > 11 {
+            return None;
+        }
 
-/// Command packet header
-#[derive(Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Debug)]
+        let mut buf = [0_u8; 11];
+        buf[..string.len()].copy_from_slice(string.as_bytes());
+
+        Some(Self(buf))
+    }
+}
+
+impl Deref for Method {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        std::str::from_utf8(&self.0).unwrap()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Header {
-    pub id: i32,
-    pub status: i16,
-    pub method: [u8; 11],
-    pub data_type: i8,
+    pub id: u32,
+    pub status: u16,
+    pub method: Method,
+    pub data_type: u8,
 }
 
-impl Header {
-    /// Extract String from method field
-    pub fn method(&self) -> Result<String, FromUtf8Error> {
-        let size = self.method.iter().position(|&c| c == b'\0').unwrap_or(11);
-
-        String::from_utf8(self.method[..size].into())
-    }
-
-    /// set method field from str. Will be sliced to 11 bytes max.
-    pub fn set_method(&mut self, method: &str) {
-        self.method = Self::to_method(method);
-    }
-
-    pub fn to_method(method: &str) -> [u8; 11] {
-        let bytes = method.as_bytes();
-        let mut method = [0_u8; 11];
-
-        method[..bytes.len().min(11)].copy_from_slice(bytes);
-
-        method
-    }
-}
-
-/// Loco protocol Command packet
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct Command {
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Command<T: ?Sized> {
     pub header: Header,
-    pub data: Vec<u8>,
+    pub data: T,
 }
