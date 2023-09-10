@@ -14,11 +14,12 @@ use rsa::{RsaPrivateKey, RsaPublicKey};
 pub fn test_handshake() {
     let mut layer = LocoClientSecureLayer::new([0_u8; 16]);
 
-    let priv_key = RsaPrivateKey::new(&mut rand::thread_rng(), 2048).expect("failed to generate a key");
+    let priv_key =
+        RsaPrivateKey::new(&mut rand::thread_rng(), 2048).expect("failed to generate a key");
     let pub_key = RsaPublicKey::from(&priv_key);
 
     layer.handshake(&pub_key);
-    
+
     assert_eq!(layer.write_buffer.len(), 12 + 256);
 }
 

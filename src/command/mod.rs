@@ -6,7 +6,7 @@
 
 use std::ops::Deref;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 pub mod client;
 
@@ -16,7 +16,7 @@ pub struct Method([u8; 11]);
 
 impl Method {
     /// Create new [`Method`]
-    /// 
+    ///
     /// Returns `None` if string is longer than 11 bytes
     pub fn new(string: &str) -> Option<Self> {
         if string.as_bytes().len() > 11 {

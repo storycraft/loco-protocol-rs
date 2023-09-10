@@ -6,7 +6,7 @@
 
 pub use rsa::RsaPublicKey;
 
-use std::collections::VecDeque;
+use std::{collections::VecDeque, io::Write};
 
 use aes::cipher::{AsyncStreamCipher, Key, KeyIvInit};
 use arrayvec::ArrayVec;
@@ -46,11 +46,10 @@ impl LocoClientSecureLayer {
     /// Write handshake packet to [`LocoClientSecureLayer::write_buffer`] using given public key
     pub fn handshake(&mut self, key: &RsaPublicKey) {
         #[derive(Serialize)]
-        struct RawHandshakePacket<'a> {
+        struct RawHandshakeHeader {
             encrypted_key_size: u32,
             key_type: u32,
             encrypt_type: u32,
-            encrypted_key: &'a [u8],
         }
 
         let encrypted_key = key
@@ -63,14 +62,15 @@ impl LocoClientSecureLayer {
 
         bincode::serialize_into(
             &mut self.write_buffer,
-            &RawHandshakePacket {
+            &RawHandshakeHeader {
                 encrypted_key_size: encrypted_key.len() as u32,
                 key_type: 15,    // RSA OAEP SHA1 MGF1 SHA1
                 encrypt_type: 2, // AES_CFB128 NOPADDING
-                encrypted_key: &encrypted_key,
             },
         )
         .unwrap();
+
+        self.write_buffer.write_all(&encrypted_key).unwrap();
     }
 
     /// Try to read single [`SecurePacket`] from [`LocoClientSecureLayer::read_buffer`]
@@ -109,12 +109,6 @@ impl LocoClientSecureLayer {
 
     /// Write single [`SecurePacket`] to [`LocoClientSecureLayer::write_buffer`]
     pub fn send(&mut self, mut packet: SecurePacket<impl AsMut<[u8]> + 'static>) {
-        #[derive(Serialize)]
-        struct RawSecurePacket<'a> {
-            header: RawHeader,
-            encrypted_data: &'a [u8],
-        }
-
         let encrypted_data = {
             let data = packet.data.as_mut();
             Aes128CfbEnc::new(&self.key, &packet.iv.into()).encrypt(data);
@@ -124,15 +118,14 @@ impl LocoClientSecureLayer {
 
         bincode::serialize_into(
             &mut self.write_buffer,
-            &RawSecurePacket {
-                header: RawHeader {
-                    size: 16 + encrypted_data.len() as u32,
-                    iv: packet.iv,
-                },
-                encrypted_data,
+            &RawHeader {
+                size: 16 + encrypted_data.len() as u32,
+                iv: packet.iv,
             },
         )
         .unwrap();
+
+        self.write_buffer.write_all(encrypted_data).unwrap();
     }
 }
 

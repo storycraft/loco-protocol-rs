@@ -4,7 +4,7 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::collections::VecDeque;
+use std::{collections::VecDeque, io::Write};
 
 use arrayvec::ArrayVec;
 use serde::{Deserialize, Serialize};
@@ -68,25 +68,18 @@ impl LocoClient {
 
     /// Write single [`Command`] to [`LocoClient::write_buffer`]
     pub fn send(&mut self, command: Command<impl AsRef<[u8]>>) {
-        #[derive(Serialize)]
-        struct RawCommand<'a> {
-            header: RawHeader,
-            data: &'a [u8],
-        }
-
         let data = command.data.as_ref();
 
         bincode::serialize_into(
             &mut self.write_buffer,
-            &RawCommand {
-                header: RawHeader {
-                    header: command.header,
-                    data_size: data.len() as u32,
-                },
-                data,
+            &RawHeader {
+                header: command.header,
+                data_size: data.len() as u32,
             },
         )
         .unwrap();
+
+        self.write_buffer.write_all(data).unwrap();
     }
 }
 

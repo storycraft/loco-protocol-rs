@@ -6,7 +6,7 @@
 
 /// `loco-protocol`: Rust Loco protocol implementation
 /// This crate provides low brick for building client on it
-/// 
+///
 /// ## Specification
 #[doc = include_str!("../specification.md")]
 
