@@ -11,11 +11,15 @@ use serde::{Serialize, Deserialize};
 pub mod client;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// 11 bytes string padded with `\0`
 pub struct Method([u8; 11]);
 
 impl Method {
+    /// Create new [`Method`]
+    /// 
+    /// Returns `None` if string is longer than 11 bytes
     pub fn new(string: &str) -> Option<Self> {
-        if string.len() > 11 {
+        if string.as_bytes().len() > 11 {
             return None;
         }
 
