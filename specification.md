@@ -1,4 +1,6 @@
 # Loco protocol specification
+Endianness: little
+
 ## Command
 | name      | size              |
 |-----------|-------------------|
