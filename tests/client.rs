@@ -6,11 +6,11 @@
 
 use std::mem::swap;
 
-use loco_protocol::command::{client::LocoClient, Command, Header, Method};
+use loco_protocol::command::{client::{LocoStream, LocoSink}, Command, Header, Method};
 
 #[test]
 pub fn read_write_test() {
-    let mut client = LocoClient::new();
+    let mut sink = LocoSink::new();
 
     let command = Command {
         header: Header {
@@ -22,9 +22,11 @@ pub fn read_write_test() {
         data: Box::new([1_u8, 2, 3]) as Box<[u8]>,
     };
 
-    client.send(command.clone());
+    sink.send(command.clone());
 
-    swap(&mut client.read_buffer, &mut client.write_buffer);
+    let mut stream = LocoStream::new();
 
-    assert_eq!(client.read(), Some(command));
+    swap(&mut stream.read_buffer, &mut sink.write_buffer);
+
+    assert_eq!(stream.read(), Some(command));
 }

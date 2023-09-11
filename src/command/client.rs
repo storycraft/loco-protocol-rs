@@ -4,7 +4,7 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::{collections::VecDeque, io::Write};
+use std::{collections::VecDeque, io::Write, mem};
 
 use arrayvec::ArrayVec;
 use serde::{Deserialize, Serialize};
@@ -15,58 +15,21 @@ use super::Command;
 
 #[derive(Debug)]
 #[non_exhaustive]
-/// IO-free loco protocol client
-pub struct LocoClient {
-    /// Read buffer for client
-    pub read_buffer: VecDeque<u8>,
-
-    /// Write buffer for client
+/// IO-free loco protocol sink
+pub struct LocoSink {
+    /// Write buffer for sink
     pub write_buffer: VecDeque<u8>,
 }
 
-impl LocoClient {
-    /// Create new [`LocoClient`]
+impl LocoSink {
+    /// Create new [`LocoSink`]
     pub const fn new() -> Self {
         Self {
-            read_buffer: VecDeque::new(),
             write_buffer: VecDeque::new(),
         }
     }
 
-    /// Try reading single [`Command`] from [`LocoClient::read_buffer`]
-    pub fn read(&mut self) -> Option<Command<Box<[u8]>>> {
-        if self.read_buffer.len() < 22 {
-            return None;
-        }
-
-        let raw_header = {
-            let buf = self
-                .read_buffer
-                .iter()
-                .take(22)
-                .copied()
-                .collect::<ArrayVec<u8, 22>>();
-
-            bincode::deserialize::<RawHeader>(&buf).unwrap()
-        };
-
-        if self.read_buffer.len() < 22 + raw_header.data_size as usize {
-            return None;
-        }
-
-        let data = self
-            .read_buffer
-            .drain(..22 + raw_header.data_size as usize)
-            .skip(22)
-            .collect::<Box<[u8]>>();
-
-        Some(Command {
-            header: raw_header.header,
-            data,
-        })
-    }
-
-    /// Write single [`Command`] to [`LocoClient::write_buffer`]
+    /// Write single [`Command`] to [`LocoSink::write_buffer`]
     pub fn send(&mut self, command: Command<impl AsRef<[u8]>>) {
         let data = command.data.as_ref();
 
@@ -83,13 +46,90 @@ impl LocoClient {
     }
 }
 
-impl Default for LocoClient {
+impl Default for LocoSink {
     fn default() -> Self {
         Self::new()
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug)]
+/// IO-free loco protocol stream
+pub struct LocoStream {
+    state: StreamState,
+
+    /// Read buffer for stream
+    pub read_buffer: VecDeque<u8>,
+}
+
+impl LocoStream {
+    /// Create new [`LocoStream`]
+    pub const fn new() -> Self {
+        Self {
+            state: StreamState::Pending,
+            read_buffer: VecDeque::new(),
+        }
+    }
+
+    /// Try reading single [`Command`] from [`LocoClient::read_buffer`]
+    pub fn read(&mut self) -> Option<Command<Box<[u8]>>> {
+        loop {
+            match mem::replace(&mut self.state, StreamState::Corrupted) {
+                StreamState::Pending => {
+                    if self.read_buffer.len() < 22 {
+                        self.state = StreamState::Pending;
+                        return None;
+                    }
+
+                    let raw_header = {
+                        let buf = self
+                            .read_buffer
+                            .drain(..22)
+                            .collect::<ArrayVec<u8, 22>>();
+
+                        bincode::deserialize::<RawHeader>(&buf).unwrap()
+                    };
+
+                    self.state = StreamState::Header(raw_header);
+                }
+
+                StreamState::Header(raw_header) => {
+                    if self.read_buffer.len() < raw_header.data_size as usize {
+                        self.state = StreamState::Header(raw_header);
+                        return None;
+                    }
+            
+                    let data = self
+                        .read_buffer
+                        .drain(..raw_header.data_size as usize)
+                        .collect::<Box<[u8]>>();
+            
+                    self.state = StreamState::Pending;
+                    return Some(Command {
+                        header: raw_header.header,
+                        data,
+                    });
+                }
+
+                StreamState::Corrupted => unreachable!(),
+            }
+        }
+    }
+}
+
+impl Default for LocoStream {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug)]
+enum StreamState {
+    Pending,
+    Header(RawHeader),
+    Corrupted,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 struct RawHeader {
     header: Header,
     data_size: u32,

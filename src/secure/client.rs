@@ -6,7 +6,7 @@
 
 pub use rsa::RsaPublicKey;
 
-use std::{collections::VecDeque, io::Write};
+use std::{collections::VecDeque, io::Write, mem};
 
 use aes::cipher::{AsyncStreamCipher, Key, KeyIvInit};
 use arrayvec::ArrayVec;
@@ -25,6 +25,8 @@ type Aes128CfbDec = cfb_mode::Decryptor<aes::Aes128>;
 pub struct LocoClientSecureLayer {
     key: Key<aes::Aes128>,
 
+    read_state: ReadState,
+
     /// Read buffer for layer
     pub read_buffer: VecDeque<u8>,
 
@@ -37,6 +39,8 @@ impl LocoClientSecureLayer {
     pub fn new(encrypt_key: [u8; 16]) -> Self {
         Self {
             key: encrypt_key.into(),
+
+            read_state: ReadState::Pending,
 
             read_buffer: VecDeque::new(),
             write_buffer: VecDeque::new(),
@@ -75,36 +79,47 @@ impl LocoClientSecureLayer {
 
     /// Try to read single [`SecurePacket`] from [`LocoClientSecureLayer::read_buffer`]
     pub fn read(&mut self) -> Option<SecurePacket<Box<[u8]>>> {
-        if self.read_buffer.len() < 20 {
-            return None;
+        loop {
+            match mem::replace(&mut self.read_state, ReadState::Corrupted) {
+                ReadState::Pending => {
+                    if self.read_buffer.len() < 20 {
+                        self.read_state = ReadState::Pending;
+                        return None;
+                    }
+
+                    let raw_header = {
+                        let buf = self.read_buffer.drain(..20).collect::<ArrayVec<u8, 20>>();
+
+                        bincode::deserialize::<RawHeader>(&buf).unwrap()
+                    };
+
+                    self.read_state = ReadState::Header(raw_header);
+                }
+
+                ReadState::Header(raw_header) => {
+                    let size = raw_header.size as usize - 16;
+
+                    if self.read_buffer.len() < size {
+                        self.read_state = ReadState::Header(raw_header);
+                        return None;
+                    }
+
+                    let mut data = self
+                        .read_buffer
+                        .drain(..size)
+                        .collect::<Box<[u8]>>();
+                    Aes128CfbDec::new(&self.key, &raw_header.iv.into()).decrypt(&mut data);
+
+                    self.read_state = ReadState::Pending;
+                    return Some(SecurePacket {
+                        iv: raw_header.iv,
+                        data,
+                    });
+                }
+
+                ReadState::Corrupted => unreachable!(),
+            }
         }
-
-        let raw_header = {
-            let buf = self
-                .read_buffer
-                .iter()
-                .take(20)
-                .copied()
-                .collect::<ArrayVec<u8, 20>>();
-
-            bincode::deserialize::<RawHeader>(&buf).unwrap()
-        };
-
-        if self.read_buffer.len() < 4 + raw_header.size as usize {
-            return None;
-        }
-
-        let mut data = self
-            .read_buffer
-            .drain(..4 + raw_header.size as usize)
-            .skip(20)
-            .collect::<Box<[u8]>>();
-        Aes128CfbDec::new(&self.key, &raw_header.iv.into()).decrypt(&mut data);
-
-        Some(SecurePacket {
-            iv: raw_header.iv,
-            data,
-        })
     }
 
     /// Write single [`SecurePacket`] to [`LocoClientSecureLayer::write_buffer`]
@@ -129,8 +144,15 @@ impl LocoClientSecureLayer {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct RawHeader {
     size: u32,
     iv: [u8; 16],
+}
+
+#[derive(Debug)]
+enum ReadState {
+    Pending,
+    Header(RawHeader),
+    Corrupted,
 }
