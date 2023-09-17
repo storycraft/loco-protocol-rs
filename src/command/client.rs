@@ -81,10 +81,7 @@ impl LocoStream {
                     }
 
                     let raw_header = {
-                        let buf = self
-                            .read_buffer
-                            .drain(..22)
-                            .collect::<ArrayVec<u8, 22>>();
+                        let buf = self.read_buffer.drain(..22).collect::<ArrayVec<u8, 22>>();
 
                         bincode::deserialize::<RawHeader>(&buf).unwrap()
                     };
@@ -97,12 +94,12 @@ impl LocoStream {
                         self.state = StreamState::Header(raw_header);
                         return None;
                     }
-            
+
                     let data = self
                         .read_buffer
                         .drain(..raw_header.data_size as usize)
                         .collect::<Box<[u8]>>();
-            
+
                     self.state = StreamState::Pending;
                     return Some(Command {
                         header: raw_header.header,

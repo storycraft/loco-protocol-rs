@@ -104,10 +104,7 @@ impl LocoClientSecureLayer {
                         return None;
                     }
 
-                    let mut data = self
-                        .read_buffer
-                        .drain(..size)
-                        .collect::<Box<[u8]>>();
+                    let mut data = self.read_buffer.drain(..size).collect::<Box<[u8]>>();
                     Aes128CfbDec::new(&self.key, &raw_header.iv.into()).decrypt(&mut data);
 
                     self.read_state = ReadState::Pending;
