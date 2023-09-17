@@ -4,7 +4,7 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-//! `loco-protocol`: Rust Loco protocol implementation
+//! # `loco-protocol`: Rust Loco protocol implementation
 //! This crate provides low brick for building client on it
 //!
 //! ## Specification
