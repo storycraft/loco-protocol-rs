@@ -47,6 +47,10 @@ impl LocoClientSecureLayer {
         }
     }
 
+    pub const fn read_state(&self) -> &ReadState {
+        &self.read_state
+    }
+
     /// Write handshake packet to [`LocoClientSecureLayer::write_buffer`] using given public key
     pub fn handshake(&mut self, key: &RsaPublicKey) {
         #[derive(Serialize)]
@@ -141,15 +145,23 @@ impl LocoClientSecureLayer {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct RawHeader {
-    size: u32,
-    iv: [u8; 16],
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RawHeader {
+    /// Data size including iv
+    pub size: u32,
+
+    /// Encrypted data IV
+    pub iv: [u8; 16],
 }
 
-#[derive(Debug)]
-enum ReadState {
+#[derive(Debug, Clone, PartialEq)]
+pub enum ReadState {
+    /// Client is waiting for packet
     Pending,
+
+    /// Client read packet header and waiting for more data
     Header(RawHeader),
+
+    /// Client corrupted and cannot continue
     Corrupted,
 }

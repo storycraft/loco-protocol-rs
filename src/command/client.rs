@@ -70,6 +70,10 @@ impl LocoStream {
         }
     }
 
+    pub const fn state(&self) -> &StreamState {
+        &self.state
+    }
+
     /// Try reading single [`Command`] from [`LocoClient::read_buffer`]
     pub fn read(&mut self) -> Option<Command<Box<[u8]>>> {
         loop {
@@ -119,15 +123,23 @@ impl Default for LocoStream {
     }
 }
 
-#[derive(Debug)]
-enum StreamState {
+#[derive(Debug, Clone, PartialEq)]
+pub enum StreamState {
+    /// Stream is waiting for packet
     Pending,
+
+    /// Stream read header and wait for data
     Header(RawHeader),
+
+    /// Client corrupted and cannot continue
     Corrupted,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct RawHeader {
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RawHeader {
+    /// Packet header
     header: Header,
+
+    /// Data size
     data_size: u32,
 }
