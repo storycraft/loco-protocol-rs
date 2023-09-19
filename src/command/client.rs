@@ -138,8 +138,8 @@ pub enum StreamState {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RawHeader {
     /// Packet header
-    header: Header,
+    pub header: Header,
 
     /// Data size
-    data_size: u32,
+    pub data_size: u32,
 }
