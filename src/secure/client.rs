@@ -27,6 +27,8 @@ pub struct LocoClientSecureLayer {
 
     read_state: ReadState,
 
+    encrypt_buffer: Vec<u8>,
+
     /// Read buffer for layer
     pub read_buffer: VecDeque<u8>,
 
@@ -41,6 +43,8 @@ impl LocoClientSecureLayer {
             key: encrypt_key.into(),
 
             read_state: ReadState::Pending,
+
+            encrypt_buffer: Vec::new(),
 
             read_buffer: VecDeque::new(),
             write_buffer: VecDeque::new(),
@@ -124,12 +128,14 @@ impl LocoClientSecureLayer {
     }
 
     /// Write single [`SecurePacket`] to [`LocoClientSecureLayer::write_buffer`]
-    pub fn send(&mut self, mut packet: SecurePacket<impl AsMut<[u8]> + 'static>) {
+    pub fn send(&mut self, packet: SecurePacket<impl AsRef<[u8]>>) {
         let encrypted_data = {
-            let data = packet.data.as_mut();
-            Aes128CfbEnc::new(&self.key, &packet.iv.into()).encrypt(data);
+            let data = packet.data.as_ref();
 
-            data
+            self.encrypt_buffer.extend(data);
+            Aes128CfbEnc::new(&self.key, &packet.iv.into()).encrypt(&mut self.encrypt_buffer);
+
+            &self.encrypt_buffer
         };
 
         bincode::serialize_into(
@@ -142,6 +148,8 @@ impl LocoClientSecureLayer {
         .unwrap();
 
         self.write_buffer.write_all(encrypted_data).unwrap();
+
+        self.encrypt_buffer.drain(..);
     }
 }
 
