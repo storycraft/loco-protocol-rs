@@ -4,7 +4,7 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::mem::swap;
+use core::mem::swap;
 
 use loco_protocol::command::{
     client::{LocoSink, LocoStream},

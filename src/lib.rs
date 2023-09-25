@@ -9,6 +9,8 @@
 //!
 //! ## Specification
 #![doc = include_str!("../specification.md")]
+#![no_std]
+extern crate alloc;
 
 // Loco protocol implementation
 pub mod command;

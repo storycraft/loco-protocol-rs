@@ -4,7 +4,8 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::{collections::VecDeque, io::Write, mem};
+use alloc::{boxed::Box, collections::VecDeque};
+use core::mem;
 
 use arrayvec::ArrayVec;
 use serde::{Deserialize, Serialize};
@@ -42,7 +43,7 @@ impl LocoSink {
         )
         .unwrap();
 
-        self.write_buffer.write_all(data).unwrap();
+        self.write_buffer.extend(data);
     }
 }
 

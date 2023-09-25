@@ -4,7 +4,7 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::mem::swap;
+use core::mem::swap;
 
 use loco_protocol::secure::{client::LocoClientSecureLayer, SecurePacket};
 use rand::RngCore;

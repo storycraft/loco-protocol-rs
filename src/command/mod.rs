@@ -4,8 +4,9 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::{fmt::Debug, ops::Deref};
+use core::{fmt::Debug, ops::Deref};
 
+use alloc::boxed::Box;
 use serde::{
     de::{self, Unexpected, Visitor},
     Deserialize, Serialize,
@@ -47,7 +48,7 @@ impl Method {
 }
 
 impl Debug for Method {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_tuple("Method").field(&self.deref()).finish()
     }
 }
@@ -56,7 +57,7 @@ impl Deref for Method {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {
-        std::str::from_utf8(&self.buf[..self.len]).unwrap()
+        core::str::from_utf8(&self.buf[..self.len]).unwrap()
     }
 }
 
@@ -79,7 +80,7 @@ impl<'de> Deserialize<'de> for Method {
         impl<'a> Visitor<'a> for MethodVisitor {
             type Value = Method;
 
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
                 write!(formatter, "utf-8 byte array that has 11 length")
             }
 
@@ -103,7 +104,7 @@ impl<'de> Deserialize<'de> for Method {
                     ))?;
                 }
 
-                let len = std::str::from_utf8(&buf)
+                let len = core::str::from_utf8(&buf)
                     .map_err(|_| {
                         de::Error::invalid_type(
                             Unexpected::Bytes(&buf),

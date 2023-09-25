@@ -4,6 +4,8 @@
 # `loco-protocol`: Rust Loco protocol implementation
 Open source loco protocol and secure layer implementation
 
+This crate can be used on `no_std` environment (requires `alloc`)
+
 ## Specification
 See `specification.md`
 

@@ -6,7 +6,8 @@
 
 pub use rsa::RsaPublicKey;
 
-use std::{collections::VecDeque, io::Write, mem};
+use alloc::{boxed::Box, collections::VecDeque, vec::Vec};
+use core::mem;
 
 use aes::cipher::{AsyncStreamCipher, Key, KeyIvInit};
 use arrayvec::ArrayVec;
@@ -82,7 +83,7 @@ impl LocoClientSecureLayer {
         )
         .unwrap();
 
-        self.write_buffer.write_all(&encrypted_key).unwrap();
+        self.write_buffer.extend(encrypted_key);
     }
 
     /// Try to read single [`SecurePacket`] from [`LocoClientSecureLayer::read_buffer`]
@@ -135,7 +136,7 @@ impl LocoClientSecureLayer {
             self.encrypt_buffer.extend(data);
             Aes128CfbEnc::new(&self.key, &packet.iv.into()).encrypt(&mut self.encrypt_buffer);
 
-            &self.encrypt_buffer
+            &mut self.encrypt_buffer
         };
 
         bincode::serialize_into(
@@ -147,9 +148,7 @@ impl LocoClientSecureLayer {
         )
         .unwrap();
 
-        self.write_buffer.write_all(encrypted_data).unwrap();
-
-        self.encrypt_buffer.drain(..);
+        self.write_buffer.extend(encrypted_data.drain(..));
     }
 }
 
