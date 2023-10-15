@@ -4,7 +4,7 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-pub use rsa::RsaPublicKey;
+pub use rsa;
 
 use alloc::{boxed::Box, collections::VecDeque, vec::Vec};
 use core::mem;
@@ -12,7 +12,7 @@ use core::mem;
 use aes::cipher::{AsyncStreamCipher, Key, KeyIvInit};
 use arrayvec::ArrayVec;
 use rand::thread_rng;
-use rsa::Oaep;
+use rsa::{Oaep, RsaPublicKey};
 use serde::{Deserialize, Serialize};
 use sha1::Sha1;
 
